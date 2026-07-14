@@ -28,18 +28,17 @@ msgstr "開始"
 msgid "WELCOME_MESSAGE"
 msgstr ""
 "[b]歡迎使用 Arrow 3.x[/b]\n"
-"Arrow 是一套免費、開放原始碼且功能豐富的[i]遊戲敘事[/i]設計工具，可用來創作[i]互動式非線性故事[/i]。\n"
-"幾點快速說明：\n"
+"\n"
+"Arrow 是一套免費、開放原始碼且功能豐富的[i]遊戲敘事[/i]設計工具，可用來創作[i]互動式非線性故事[/i]。幾點快速說明：\n"
 "\n"
 "[b]網頁版資料儲存[/b]\n"
-"Arrow 網頁版會使用瀏覽器儲存空間管理專案。\n"
-"[i]你的資料只會保留在這台裝置上。[/i]\n"
+"Arrow 網頁版會使用瀏覽器儲存空間管理專案。[i]你的資料只會保留在這台裝置上。[/i]\n"
 "若要匯出專案，請使用：\n"
 "[indent][bgcolor=black][color=white][i][code] 檢查器（面板）> 專案（分頁）> 匯出 [/code][/i][/color][/bgcolor][/indent]\n"
 "若要清除應用程式儲存空間，請使用：\n"
 "[indent][bgcolor=black][color=white][i][code] Arrow（左上角選單）> 清除 [/code][/i][/color][/bgcolor][/indent]\n"
-"如需更多資訊，請瀏覽官方網站或專案儲存庫。\n"
-"敬祝順心\n"
+"\n"
+"如需更多資訊，請瀏覽官方網站或專案儲存庫。敬祝順心\n"
 "Mor. H. Golkar 與所有貢獻者"
 
 msgid "Copyright"
@@ -71,6 +70,24 @@ msgstr "使用者介面"
 
 msgid "Theme"
 msgstr "佈景主題"
+
+msgid "Interface Font"
+msgstr "介面字體"
+
+msgid "Follow Language"
+msgstr "跟隨語言"
+
+msgid "Theme Default"
+msgstr "主題預設"
+
+msgid "Browse…"
+msgstr "瀏覽…"
+
+msgid "Select Interface Font"
+msgstr "選擇介面字體"
+
+msgid "(External)"
+msgstr "（外部）"
 
 msgid "Language"
 msgstr "語言"

@@ -35,10 +35,13 @@ const HOWS = {
 
 func _ready() -> void:
 	register_connections()
-	TranslationServer.translation_changed.connect(load_how_options)
 	load_how_options()
 	cleanup_query.call_deferred()
 	pass
+
+func _notification(what:int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED && is_node_ready():
+		load_how_options.call_deferred()
 
 func register_connections() -> void:
 	QueryInput.text_submitted.connect(self.do_query)

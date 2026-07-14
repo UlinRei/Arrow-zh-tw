@@ -10,6 +10,7 @@ extends Control
 @onready var CloseButton = $/root/Main/Overlays/Control/About/Margin/Half/Right/Toolbar/Close
 @onready var AppVersionDisplay = $/root/Main/Overlays/Control/About/Margin/Half/Left/Information/Version
 @onready var Copyright = $/root/Main/Overlays/Control/About/Margin/Half/Right/Tabs/Copyright
+@onready var Welcome = $/root/Main/Overlays/Control/About/Margin/Half/Right/Tabs/Hello
 
 const LINKS = [
 	["/root/Main/Overlays/Control/About/Margin/Half/Left/Information/Website", "https://mhgolkar.github.io/Arrow/"],
@@ -29,13 +30,21 @@ const COPYRIGHT_PLUS = ["res://assets/fonts/copyright"]
 
 func _ready() -> void:
 	AppVersionDisplay.set_text( Settings.ARROW_VERSION );
+	Copyright.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	Welcome.fit_content = false
+	Welcome.scroll_active = true
+	Copyright.fit_content = false
+	Copyright.scroll_active = true
 	register_connections()
-	TranslationServer.translation_changed.connect(print_copyright)
 	print_copyright()
 	pass
 
+func _notification(what:int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED && is_node_ready():
+		print_copyright.call_deferred()
+
 func register_connections() -> void:
-	CloseButton.pressed.connect(self._toggle, CONNECT_DEFERRED)
+	CloseButton.pressed.connect(self._toggle)
 	# Link Buttons
 	for link in LINKS:
 		# var link_button = get_node(link[0])
@@ -44,7 +53,7 @@ func register_connections() -> void:
 	pass
 
 func _toggle() -> void:
-	Main.call_deferred("toggle_about")
+	Main.UI.set_panel_visibility("about", false)
 	pass
 
 func print_copyright() -> void:

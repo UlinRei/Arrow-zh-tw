@@ -358,6 +358,27 @@ text = "Language"
 [node name="Options" type="OptionButton" parent="Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/Language/Selector" unique_id=1320947295]
 layout_mode = 2
 
+[node name="Font" type="PanelContainer" parent="Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params"]
+layout_mode = 2
+
+[node name="Selector" type="VBoxContainer" parent="Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/Font"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/Font/Selector"]
+layout_mode = 2
+text = "Interface Font"
+
+[node name="Tools" type="HBoxContainer" parent="Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/Font/Selector"]
+layout_mode = 2
+
+[node name="Options" type="OptionButton" parent="Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/Font/Selector/Tools"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Browse" type="Button" parent="Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/Font/Selector/Tools"]
+layout_mode = 2
+text = "Browse…"
+
 [node name="DataManagement" type="Label" parent="Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params" unique_id=675093075]
 layout_mode = 2
 theme_type_variation = &"LabelH3"
