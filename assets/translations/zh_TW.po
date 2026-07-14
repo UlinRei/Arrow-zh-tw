@@ -268,6 +268,12 @@ msgstr "尋找下一個參照來源"
 msgid "Scoped (Filter for Scene)"
 msgstr "限定範圍（依場景篩選）"
 
+msgid "NODES_TAB_BLOCKER"
+msgstr ""
+"選取節點以查看屬性，或\n"
+"在網格上按一下滑鼠右鍵\n"
+"建立新節點。"
+
 msgid "Scenes"
 msgstr "場景"
 
