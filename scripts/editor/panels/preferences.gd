@@ -72,7 +72,7 @@ func refresh_appearance_font_options() -> void:
 		if filename.get_extension().to_lower() in Settings.UI_FONT_EXTENSIONS:
 			var label = filename.get_basename()
 			if filename == "GenJyuuGothic-Medium.ttf":
-				label += " (Chinese Default)"
+				label += " (Traditional Chinese Default)"
 			add_font_option(label, Settings.UI_FONTS_DIR + filename)
 	if selected_value != null:
 		select_font_selector_for(selected_value)

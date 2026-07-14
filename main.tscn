@@ -235,6 +235,10 @@ text = "Repository"
 layout_mode = 2
 text = "Documentation"
 
+[node name="TranslatorRepository" type="LinkButton" parent="Overlays/Control/About/Margin/Half/Left/Information"]
+layout_mode = 2
+text = "Zh-TW Repository"
+
 [node name="Right" type="VBoxContainer" parent="Overlays/Control/About/Margin/Half" unique_id=2139861858]
 layout_mode = 2
 size_flags_horizontal = 3
