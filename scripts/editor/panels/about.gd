@@ -19,11 +19,18 @@ const LINKS = [
 
 const LICENSE = "res://license"
 const COPYRIGHT = "res://copyright"
+const LOCALIZED_LEGAL_FILES = {
+	"zh_TW": {
+		"license": "res://license.zh_TW",
+		"copyright": "res://copyright.zh_TW",
+	},
+}
 const COPYRIGHT_PLUS = ["res://assets/fonts/copyright"]
 
 func _ready() -> void:
 	AppVersionDisplay.set_text( Settings.ARROW_VERSION );
 	register_connections()
+	TranslationServer.translation_changed.connect(print_copyright)
 	print_copyright()
 	pass
 
@@ -41,9 +48,12 @@ func _toggle() -> void:
 	pass
 
 func print_copyright() -> void:
-	var copyright: String = Helpers.Utils.read_text_extended(COPYRIGHT, "#")
+	var localized_files: Dictionary = LOCALIZED_LEGAL_FILES.get(TranslationServer.get_locale(), {})
+	var copyright_path: String = localized_files.get("copyright", COPYRIGHT)
+	var license_path: String = localized_files.get("license", LICENSE)
+	var copyright: String = Helpers.Utils.read_text_extended(copyright_path, "#")
 	# ...
-	copyright = copyright.replacen("@Import:ARROW_LICENSE", Helpers.Utils.read_text_file(LICENSE))
+	copyright = copyright.replacen("@Import:ARROW_LICENSE", Helpers.Utils.read_text_file(license_path))
 	# ...
 	copyright = copyright.replacen("@Import:GODOT_LICENSE_FROM_ENGINE", Engine.get_license_text())
 	# ...

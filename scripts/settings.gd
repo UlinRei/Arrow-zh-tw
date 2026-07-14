@@ -329,4 +329,8 @@ const THEMES = {
 	1: { "name": "Light",  "resource": preload("res://assets/themes/light.tres") },
 }
 
+const LOCALE_FONTS = {
+	"zh_TW": preload("res://assets/fonts/GenSekiGothic2TW-R.otf"),
+}
+
 const UI_TRANSLATIONS_DIR = "res://assets/translations"

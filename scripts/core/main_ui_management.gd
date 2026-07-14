@@ -158,10 +158,22 @@ class UiManager :
 		var theme = Settings.THEMES[by_id].resource
 		for adjustment_layer in get_theme_adjustment_layers():
 			adjustment_layer.call_deferred("set_theme", theme)
+		apply_locale_font(TranslationServer.get_locale(), theme)
 		return by_id
+
+	func apply_locale_font(by_locale:String, target_theme:Theme = null) -> void:
+		var locale_font: Font = Settings.LOCALE_FONTS.get(by_locale, null)
+		if target_theme != null:
+			target_theme.default_font = locale_font
+			return
+		for adjustment_layer in get_theme_adjustment_layers():
+			var theme: Theme = adjustment_layer.get_theme()
+			if theme != null:
+				theme.default_font = locale_font
 
 	func reset_language(by_locale:String = "en") -> String:
 		PANELS.preferences.reset_language(by_locale)
+		apply_locale_font(by_locale)
 		return by_locale
 	
 	func read_panels_state() -> Dictionary:

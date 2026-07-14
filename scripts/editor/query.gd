@@ -35,6 +35,7 @@ const HOWS = {
 
 func _ready() -> void:
 	register_connections()
+	TranslationServer.translation_changed.connect(load_how_options)
 	load_how_options()
 	cleanup_query.call_deferred()
 	pass
@@ -53,7 +54,7 @@ func register_connections() -> void:
 func load_how_options() -> void:
 	QueryHowOptions.clear()
 	for id in HOWS:
-		QueryHowOptions.add_item(HOWS[id].text, id)
+		QueryHowOptions.add_item(tr(HOWS[id].text), id)
 	pass
 
 func do_query(string:String = "", and_focus:bool = false) -> void:

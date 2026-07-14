@@ -23,7 +23,7 @@ msgid "Documentation"
 msgstr "文件"
 
 msgid "Hello"
-msgstr "您好"
+msgstr "開始"
 
 msgid "WELCOME_MESSAGE"
 msgstr ""
@@ -31,7 +31,7 @@ msgstr ""
 "Arrow 是一套免費、開放原始碼且功能豐富的[i]遊戲敘事[/i]設計工具，可用來創作[i]互動式非線性故事[/i]。\n"
 "幾點快速說明：\n"
 "\n"
-"[b]PWA 資料儲存[/b]\n"
+"[b]網頁版資料儲存[/b]\n"
 "Arrow 網頁版會使用瀏覽器儲存空間管理專案。\n"
 "[i]你的資料只會保留在這台裝置上。[/i]\n"
 "若要匯出專案，請使用：\n"
@@ -61,7 +61,7 @@ msgid "Preferences"
 msgstr "偏好設定"
 
 msgid "Dismiss"
-msgstr "關閉"
+msgstr "返回"
 
 msgid "Confirm"
 msgstr "確認"
@@ -125,6 +125,38 @@ msgstr "新增文件"
 
 msgid "Title"
 msgstr "標題"
+
+# New-project template values are translated only when a new project is created.
+msgid "Untitled Adventure"
+msgstr "未命名的冒險"
+
+msgid "Start"
+msgstr "開始"
+
+msgid "Hello World!"
+msgstr "哈囉，世界！"
+
+msgid "Let's begin our adventure."
+msgstr "讓我們開始這趟冒險吧。"
+
+# Query toolbox
+msgid "QUERY_MATCH_OPTION_BUTTON_TEXT_TEMPLATE"
+msgstr "{current}：{total} 個結果"
+
+msgid "QUERY_MATCH_ITEM_TEXT_TEMPLATE"
+msgstr "{name}－{capitalized_type}"
+
+msgid "Any Match"
+msgstr "任意符合"
+
+msgid "Including"
+msgstr "包含"
+
+msgid "Exact Match"
+msgstr "完全符合"
+
+msgid "RegEx"
+msgstr "正規表示式"
 
 msgid "Project or Chapter Title"
 msgstr "專案或章節名稱"
