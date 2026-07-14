@@ -1,31 +1,49 @@
 # Arrow Translation — Traditional Chinese (Taiwan)
-
 msgid ""
 msgstr ""
 "Project-Id-Version: Arrow\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
 "Language: zh_TW\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 3.9\n"
 
 msgid "Website"
 msgstr "官方網站"
 
 msgid "Repository"
-msgstr "程式碼儲存庫"
+msgstr "儲存庫"
 
 msgid "Documentation"
-msgstr "說明文件"
+msgstr "文件"
 
 msgid "Hello"
-msgstr "歡迎"
+msgstr "您好"
 
 msgid "WELCOME_MESSAGE"
-msgstr "[b]歡迎使用 Arrow 3.x[/b]\n\nArrow 是一套免費、開放原始碼且功能豐富的[i]遊戲敘事[/i]設計工具，可用來創作[i]互動式非線性故事[/i]。\n\n幾點快速說明：\n\n[b]PWA 資料儲存[/b]\nArrow 網頁版會使用瀏覽器儲存空間管理專案。\n[i]你的資料只會保留在這台裝置上。[/i]\n若要匯出專案，請使用：\n[indent][bgcolor=black][color=white][i][code] 檢查器（面板）> 專案（分頁）> 匯出 [/code][/i][/color][/bgcolor][/indent]\n若要清除應用程式儲存空間，請使用：\n[indent][bgcolor=black][color=white][i][code] Arrow（左上角選單）> 清除 [/code][/i][/color][/bgcolor][/indent]\n\n如需更多資訊，請瀏覽官方網站或專案儲存庫。\n\n敬祝順心\nMor. H. Golkar 與所有貢獻者\n"
+msgstr ""
+"[b]歡迎使用 Arrow 3.x[/b]\n"
+"Arrow 是一套免費、開放原始碼且功能豐富的[i]遊戲敘事[/i]設計工具，可用來創作[i]互動式非線性故事[/i]。\n"
+"幾點快速說明：\n"
+"\n"
+"[b]PWA 資料儲存[/b]\n"
+"Arrow 網頁版會使用瀏覽器儲存空間管理專案。\n"
+"[i]你的資料只會保留在這台裝置上。[/i]\n"
+"若要匯出專案，請使用：\n"
+"[indent][bgcolor=black][color=white][i][code] 檢查器（面板）> 專案（分頁）> 匯出 [/code][/i][/color][/bgcolor][/indent]\n"
+"若要清除應用程式儲存空間，請使用：\n"
+"[indent][bgcolor=black][color=white][i][code] Arrow（左上角選單）> 清除 [/code][/i][/color][/bgcolor][/indent]\n"
+"如需更多資訊，請瀏覽官方網站或專案儲存庫。\n"
+"敬祝順心\n"
+"Mor. H. Golkar 與所有貢獻者"
 
 msgid "Copyright"
-msgstr "著作權"
+msgstr "版權"
 
 msgid "New"
 msgstr "新增"
@@ -43,7 +61,7 @@ msgid "Preferences"
 msgstr "偏好設定"
 
 msgid "Dismiss"
-msgstr "略過"
+msgstr "關閉"
 
 msgid "Confirm"
 msgstr "確認"
@@ -73,7 +91,7 @@ msgid "Reset"
 msgstr "重設"
 
 msgid "History (Undo/Redo)"
-msgstr "操作記錄（復原／重做）"
+msgstr "歷史（復原／重做）"
 
 msgid "Size"
 msgstr "筆數"
@@ -109,7 +127,7 @@ msgid "Title"
 msgstr "標題"
 
 msgid "Project or Chapter Title"
-msgstr "專案或章節標題"
+msgstr "專案或章節名稱"
 
 msgid "Filename"
 msgstr "檔案名稱"
@@ -118,7 +136,7 @@ msgid "(without extension)"
 msgstr "（不含副檔名）"
 
 msgid "Filename's already used or invalid"
-msgstr "檔案名稱已被使用或格式無效"
+msgstr "檔案名稱已被使用或無效"
 
 msgid "Full Path"
 msgstr "完整路徑"
@@ -253,10 +271,10 @@ msgid "Str Value"
 msgstr "字串值"
 
 msgid "True"
-msgstr "真"
+msgstr "啟用"
 
 msgid "False"
-msgstr "假"
+msgstr "禁用"
 
 msgid "Characters"
 msgstr "角色"
@@ -271,7 +289,7 @@ msgid "No Initial Tag"
 msgstr "沒有初始標籤"
 
 msgid "Key"
-msgstr "鍵名"
+msgstr "關鍵"
 
 msgid "Value"
 msgstr "值"
@@ -376,16 +394,16 @@ msgid "Export Playable HTML"
 msgstr "匯出可播放的 HTML"
 
 msgid "Export CSV (Translation)"
-msgstr "匯出 CSV（翻譯）"
+msgstr "匯出 CSV（翻譯文件）"
 
 msgid "Select App Local Directory"
-msgstr "選擇應用程式本機目錄"
+msgstr "選擇應用程式的本機目錄"
 
 msgid "Fullscreen (F11)"
 msgstr "全螢幕（F11）"
 
 msgid "Exit Fullscreen (F11)"
-msgstr "離開全螢幕（F11）"
+msgstr "退出全螢幕（F11）"
 
 msgid "Stay Above"
 msgstr "永遠顯示在最上層"
