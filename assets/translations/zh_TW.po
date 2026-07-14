@@ -22,24 +22,26 @@ msgstr "儲存庫"
 msgid "Documentation"
 msgstr "文件"
 
+msgid "Zh-TW Repository"
+msgstr "譯者儲存庫"
+
 msgid "Hello"
-msgstr "您好"
+msgstr "開始"
 
 msgid "WELCOME_MESSAGE"
 msgstr ""
-"[b]歡迎使用 Arrow 3.x[/b]\n"
-"Arrow 是一套免費、開放原始碼且功能豐富的[i]遊戲敘事[/i]設計工具，可用來創作[i]互動式非線性故事[/i]。\n"
-"幾點快速說明：\n"
+"[b]歡迎使用 Arrow 3.x-ZhTW[/b]\n"
 "\n"
-"[b]PWA 資料儲存[/b]\n"
-"Arrow 網頁版會使用瀏覽器儲存空間管理專案。\n"
-"[i]你的資料只會保留在這台裝置上。[/i]\n"
+"Arrow 是一套免費、開放原始碼且功能豐富的[i]遊戲敘事[/i]設計工具，可用來創作[i]互動式非線性故事[/i]。\n"
+"\n"
+"以下是關於網頁版本（沒有中文）的資料存儲說明：\n"
+"Arrow 網頁版會使用瀏覽器儲存空間管理專案。[i]你的資料只會保留在這台裝置上。[/i]\n"
 "若要匯出專案，請使用：\n"
-"[indent][bgcolor=black][color=white][i][code] 檢查器（面板）> 專案（分頁）> 匯出 [/code][/i][/color][/bgcolor][/indent]\n"
+"[indent][bgcolor=black][color=white][i][code] Inspector (panel) > Project (tab) > Export [/code][/i][/color][/bgcolor][/indent]\n"
 "若要清除應用程式儲存空間，請使用：\n"
-"[indent][bgcolor=black][color=white][i][code] Arrow（左上角選單）> 清除 [/code][/i][/color][/bgcolor][/indent]\n"
-"如需更多資訊，請瀏覽官方網站或專案儲存庫。\n"
-"敬祝順心\n"
+"[indent][bgcolor=black][color=white][i][code] Arrow (menu button; top-left) > Clear [/code][/i][/color][/bgcolor][/indent]\n"
+"\n"
+"如需更多資訊，請瀏覽官方網站或專案儲存庫。敬祝順心\n"
 "Mor. H. Golkar 與所有貢獻者"
 
 msgid "Copyright"
@@ -61,7 +63,7 @@ msgid "Preferences"
 msgstr "偏好設定"
 
 msgid "Dismiss"
-msgstr "關閉"
+msgstr "返回"
 
 msgid "Confirm"
 msgstr "確認"
@@ -71,6 +73,24 @@ msgstr "使用者介面"
 
 msgid "Theme"
 msgstr "佈景主題"
+
+msgid "Interface Font"
+msgstr "介面字體"
+
+msgid "Follow Language"
+msgstr "跟隨語言"
+
+msgid "Theme Default"
+msgstr "主題預設"
+
+msgid "Browse…"
+msgstr "瀏覽…"
+
+msgid "Select Interface Font"
+msgstr "選擇介面字體"
+
+msgid "(External)"
+msgstr "（外部）"
 
 msgid "Language"
 msgstr "語言"
@@ -125,6 +145,38 @@ msgstr "新增文件"
 
 msgid "Title"
 msgstr "標題"
+
+# New-project template values are translated only when a new project is created.
+msgid "Untitled Adventure"
+msgstr "未命名的冒險"
+
+msgid "Start"
+msgstr "開始"
+
+msgid "Hello World!"
+msgstr "哈囉，世界！"
+
+msgid "Let's begin our adventure."
+msgstr "讓我們開始這趟冒險吧。"
+
+# Query toolbox
+msgid "QUERY_MATCH_OPTION_BUTTON_TEXT_TEMPLATE"
+msgstr "{current}：{total} 個結果"
+
+msgid "QUERY_MATCH_ITEM_TEXT_TEMPLATE"
+msgstr "{name}－{capitalized_type}"
+
+msgid "Any Match"
+msgstr "任意符合"
+
+msgid "Including"
+msgstr "包含"
+
+msgid "Exact Match"
+msgstr "完全符合"
+
+msgid "RegEx"
+msgstr "正規表示式"
 
 msgid "Project or Chapter Title"
 msgstr "專案或章節名稱"
@@ -377,6 +429,25 @@ msgstr "快速設定"
 
 msgid "Save Project"
 msgstr "儲存專案"
+
+msgid "Are you sure ?!"
+msgstr "確定要繼續嗎？！"
+
+msgid "UNSAVED_CHANGES_WARNING"
+msgstr "專案 `%s` 已被修改。若仍要關閉，尚未儲存的變更將會遺失。"
+
+msgid "Close Anyway"
+msgstr "仍要關閉"
+
+# ---------------------------------------------
+# scripts/editor/panels/preferences_ald_menu.gd
+# ---------------------------------------------
+
+msgid "ALD_PRESET_USER_DIR"
+msgstr "作業系統預設的應用程式資料目錄"
+
+msgid "ALD_PRESET_RES_DIR"
+msgstr "Arrow 執行檔所在目錄"
 
 msgid "Error!"
 msgstr "錯誤！"
