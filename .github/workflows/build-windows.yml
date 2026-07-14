@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Godot and export templates
         shell: pwsh
@@ -49,13 +49,13 @@ jobs:
           New-Item -ItemType Directory -Force -Path build/windows | Out-Null
           & ".godot-bin/Godot_v${env:GODOT_VERSION}-${env:GODOT_STATUS}_win64.exe" --headless --path . --export-release Windows build/windows/Arrow.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Compress-Archive -Path build/windows/Arrow.exe,build/windows/Arrow.pck -DestinationPath build/Arrow-3.1.0-ZhTW-1-Windows-x86_64.zip
-
       - name: Upload Windows build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Arrow-3.1.0-ZhTW-1-Windows-x86_64
-          path: build/Arrow-3.1.0-ZhTW-1-Windows-x86_64.zip
+          path: |
+            build/windows/Arrow.exe
+            build/windows/Arrow.pck
           if-no-files-found: error
           retention-days: 30
 
@@ -66,7 +66,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Godot and export templates
         shell: bash
@@ -99,9 +99,12 @@ jobs:
           tar -czf build/Arrow-3.1.0-ZhTW-1-Linux-x86_64.tar.gz -C build/linux Arrow.x86_64 Arrow.pck
 
       - name: Upload Linux build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Arrow-3.1.0-ZhTW-1-Linux-x86_64
-          path: build/Arrow-3.1.0-ZhTW-1-Linux-x86_64.tar.gz
+          path: |
+            build/linux/Arrow.x86_64
+            build/linux/Arrow.pck
+            build/Arrow-3.1.0-ZhTW-1-Linux-x86_64.tar.gz
           if-no-files-found: error
           retention-days: 30
