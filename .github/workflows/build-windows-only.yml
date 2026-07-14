@@ -41,15 +41,16 @@ jobs:
       - name: Import project
         shell: pwsh
         run: |
-          & ".godot-bin/Godot_v${env:GODOT_VERSION}-${env:GODOT_STATUS}_win64.exe" --headless --editor --path . --quit
+          & ".godot-bin/Godot_v${env:GODOT_VERSION}-${env:GODOT_STATUS}_win64_console.exe" --headless --editor --path . --quit
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Export Windows release
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build/windows | Out-Null
-          & ".godot-bin/Godot_v${env:GODOT_VERSION}-${env:GODOT_STATUS}_win64.exe" --headless --path . --export-release Windows build/windows/Arrow.exe
+          & ".godot-bin/Godot_v${env:GODOT_VERSION}-${env:GODOT_STATUS}_win64_console.exe" --headless --path . --export-release Windows build/windows/Arrow.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Item build/windows/Arrow.exe, build/windows/Arrow.pck | Format-Table Name, Length
 
       - name: Upload Windows build
         uses: actions/upload-artifact@v7
