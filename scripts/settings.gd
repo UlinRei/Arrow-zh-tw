@@ -338,7 +338,7 @@ const THEMES = {
 }
 
 const LOCALE_FONTS = {
-	"zh_TW": preload("res://assets/fonts/GenJyuuGothic-Medium.ttf"),
+	"zh_TW": preload("res://assets/fonts/NotoSansCJKtc-Medium.otf"),
 }
 
 const UI_FONTS_DIR = "res://assets/fonts/"

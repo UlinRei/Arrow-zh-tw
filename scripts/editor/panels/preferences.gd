@@ -71,7 +71,7 @@ func refresh_appearance_font_options() -> void:
 	for filename in ResourceLoader.list_directory(Settings.UI_FONTS_DIR):
 		if filename.get_extension().to_lower() in Settings.UI_FONT_EXTENSIONS:
 			var label = filename.get_basename()
-			if filename == "GenJyuuGothic-Medium.ttf":
+			if filename == "NotoSansCJKtc-Medium.otf":
 				label += " (Traditional Chinese Default)"
 			add_font_option(label, Settings.UI_FONTS_DIR + filename)
 	if selected_value != null:

@@ -203,7 +203,7 @@ msgid "Select Current Folder"
 msgstr "選擇目前資料夾"
 
 msgid "Inspector"
-msgstr "檢查器"
+msgstr "屬性面板"
 
 msgid "Project"
 msgstr "專案"
@@ -419,10 +419,10 @@ msgid "Locate Next Match (Ctrl + 2)"
 msgstr "尋找下一筆符合項目（Ctrl + 2）"
 
 msgid "Toggle Inspector Panel (Ctrl + P)"
-msgstr "切換檢查器面板（Ctrl + P）"
+msgstr "切換屬性面板（Ctrl + P）"
 
 msgid "Inspect."
-msgstr "檢查器"
+msgstr "屬性面板"
 
 msgid "Quick Pref."
 msgstr "快速設定"
@@ -442,7 +442,6 @@ msgstr "仍要關閉"
 # ---------------------------------------------
 # scripts/editor/panels/preferences_ald_menu.gd
 # ---------------------------------------------
-
 msgid "ALD_PRESET_USER_DIR"
 msgstr "作業系統預設的應用程式資料目錄"
 
