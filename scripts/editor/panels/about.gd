@@ -16,7 +16,7 @@ const LINKS = [
 	["/root/Main/Overlays/Control/About/Margin/Half/Left/Information/Website", "https://mhgolkar.github.io/Arrow/"],
 	["/root/Main/Overlays/Control/About/Margin/Half/Left/Information/Repository", "https://github.com/mhgolkar/Arrow"],
 	["/root/Main/Overlays/Control/About/Margin/Half/Left/Information/Documentation", "https://github.com/mhgolkar/Arrow/wiki"],
-	["/root/Main/Overlays/Control/About/Margin/Half/Left/Information/TranslatorRepository", "https://github.com/UlinRei/Arrow"],
+	["/root/Main/Overlays/Control/About/Margin/Half/Left/Information/TranslatorRepository", "https://github.com/UlinRei/Arrow-zh-tw"],
 ]
 
 const LICENSE = "res://license"
