@@ -64,7 +64,7 @@ godot --headless --path . --export-release "Windows" "build/windows/Arrow.exe"
 
 ## 使用與設定
 
-第一次啟動後，可在 **偏好設定 → 語言** 選擇 `Chinese, Taiwan (zh_TW)`。若畫面沒有立即完整更新，關閉並重新開啟偏好設定或重新啟動程式即可。
+第一次啟動後，可在 **Preferences → Language** 選擇 `Chinese, Taiwan (zh_TW)`。若畫面沒有立即完整更新，關閉並重新開啟偏好設定或重新啟動程式即可。
 
 介面字型選項位於語言設定下方。選擇「跟隨語言」時，繁體中文會使用本專案設定的中文預設字型；也可以選擇內建字型，或使用「瀏覽」加入本機字型。
 
