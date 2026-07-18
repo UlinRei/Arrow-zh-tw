@@ -23,6 +23,10 @@ const QUICK_PREFERENCES_MENU = {
 func _ready() -> void:
 	load_quick_preferences_menu()
 	QuickPreferencesPopup.id_pressed.connect(self._on_quick_preferences_popup_item_id_pressed, CONNECT_DEFERRED)
+	if OS.has_feature("android"):
+		# AndroidAdapter opens this popup on touch release. This avoids the
+		# press-and-hold behavior of MenuButton on Android.
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pass
 
 func load_quick_preferences_menu() -> void:

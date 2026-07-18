@@ -4,9 +4,6 @@ extends Node
 # Desktop, Linux and Web builds are unaffected.
 
 const LONG_PRESS_SECONDS := 0.55
-const PAN_START_DISTANCE := 10.0
-const BOX_SELECT_START_DISTANCE := 12.0
-const NODE_LONG_PRESS_MOVE_TOLERANCE := 18.0
 const KEYBOARD_MARGIN := 28.0
 const KEYBOARD_MOVE_SPEED := 1800.0
 const ANDROID_BASE_DPI := 160.0
@@ -21,9 +18,7 @@ const ANDROID_TOP_ACTION_SCALE := 1.5
 enum CanvasMode {
 	NONE,
 	PENDING,
-	PAN,
 	LONG_READY,
-	BOX_SELECT,
 	PINCH,
 }
 
@@ -31,6 +26,8 @@ var Main: Control
 var Grid: GraphEdit
 var ContextMenu: PopupPanel
 var MiniMapBox: Control
+var AppMenuButton: MenuButton
+var QuickPreferencesButton: MenuButton
 
 var _setup_complete := false
 var _main_base_position := Vector2.ZERO
@@ -49,7 +46,6 @@ var _canvas_start_scroll := Vector2.ZERO
 
 var _node_hold_active := false
 var _node_hold_index := -1
-var _node_hold_origin := Vector2.ZERO
 var _node_hold_current := Vector2.ZERO
 var _node_hold_elapsed := 0.0
 var _node_long_press_triggered := false
@@ -57,6 +53,8 @@ var _node_long_press_triggered := false
 var _pinch_start_distance := 1.0
 var _pinch_start_zoom := 1.0
 var _pinch_anchor_graph_position := Vector2.ZERO
+var _app_menu_touch_index := -1
+var _quick_preferences_touch_index := -1
 
 var _selection_overlay: Panel
 
@@ -85,6 +83,12 @@ func _setup_android() -> void:
 	MiniMapBox = get_node_or_null(
 		"/root/Main/Editor/Center/MiniMap"
 	) as Control
+	AppMenuButton = get_node_or_null(
+		"/root/Main/Editor/Top/Bar/AppMenu"
+	) as MenuButton
+	QuickPreferencesButton = get_node_or_null(
+		"/root/Main/Editor/Bottom/Bar/Quick/Access/SpecialPreferences"
+	) as MenuButton
 
 	DisplayServer.screen_set_orientation(
 		DisplayServer.SCREEN_SENSOR_LANDSCAPE
@@ -208,12 +212,10 @@ func _enlarge_top_right_actions() -> void:
 	) as Button
 	if save_button != null:
 		save_button.text = ""
-		save_button.custom_minimum_size = Vector2.ONE * (
-			24.0 * ANDROID_TOP_ACTION_SCALE
-		)
+		save_button.custom_minimum_size = Vector2.ONE * 54.0
 		save_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		save_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-		save_button.add_theme_constant_override("icon_max_width", 30)
+		save_button.add_theme_constant_override("icon_max_width", 44)
 
 
 func _create_selection_overlay() -> void:
@@ -308,6 +310,10 @@ func _handle_emulated_canvas_mouse(
 
 
 func _handle_screen_touch(event: InputEventScreenTouch) -> void:
+	if _handle_android_menu_touch(event):
+		get_viewport().set_input_as_handled()
+		return
+
 	if event.pressed:
 		_touch_points[event.index] = event.position
 
@@ -349,6 +355,34 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 			_finish_node_hold(event.position)
 
 
+func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
+	if event.pressed:
+		if (
+			AppMenuButton != null
+			and AppMenuButton.get_global_rect().has_point(event.position)
+		):
+			_app_menu_touch_index = event.index
+			AppMenuButton.get_popup().hide()
+			Main.UI.call_deferred("set_panel_visibility", "preferences", true)
+			return true
+		if (
+			QuickPreferencesButton != null
+			and QuickPreferencesButton.get_global_rect().has_point(event.position)
+		):
+			_quick_preferences_touch_index = event.index
+			return true
+		return false
+
+	if event.index == _app_menu_touch_index:
+		_app_menu_touch_index = -1
+		return true
+	if event.index == _quick_preferences_touch_index:
+		_quick_preferences_touch_index = -1
+		QuickPreferencesButton.show_popup.call_deferred()
+		return true
+	return false
+
+
 func _refresh_android_graph_node(node: Node) -> void:
 	if not node is GraphNode:
 		return
@@ -377,17 +411,12 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 		_canvas_mode != CanvasMode.NONE
 		and event.index == _canvas_touch_index
 	):
-		_update_canvas_drag(event.position)
+		_canvas_current = event.position
 		get_viewport().set_input_as_handled()
 		return
 
 	if _node_hold_active and event.index == _node_hold_index:
 		_node_hold_current = event.position
-		if (
-			_node_hold_origin.distance_to(_node_hold_current)
-			> NODE_LONG_PRESS_MOVE_TOLERANCE
-		):
-			_cancel_node_hold()
 
 
 func _handle_pan_gesture(event: InputEventPanGesture) -> void:
@@ -442,21 +471,6 @@ func _begin_canvas_at(position: Vector2, input_index: int) -> void:
 
 func _update_canvas_drag(position: Vector2) -> void:
 	_canvas_current = position
-	var travel := _canvas_origin.distance_to(_canvas_current)
-
-	match _canvas_mode:
-		CanvasMode.PENDING:
-			if travel >= PAN_START_DISTANCE:
-				_canvas_mode = CanvasMode.PAN
-				_update_canvas_pan()
-		CanvasMode.PAN:
-			_update_canvas_pan()
-		CanvasMode.LONG_READY:
-			if travel >= BOX_SELECT_START_DISTANCE:
-				_begin_box_selection()
-				_update_box_selection()
-		CanvasMode.BOX_SELECT:
-			_update_box_selection()
 
 
 func _finish_canvas_touch(release_position: Vector2) -> void:
@@ -467,59 +481,12 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 			# A short tap on empty canvas clears the current selection.
 			_clear_selection()
 		CanvasMode.LONG_READY:
-			# The menu is opened as soon as the long-press threshold is reached.
-			pass
-		CanvasMode.BOX_SELECT:
-			_apply_box_selection()
+			_show_context_menu(release_position)
 
 	_hide_selection_overlay()
 	_canvas_mode = CanvasMode.NONE
 	_canvas_touch_index = -1
 	_canvas_elapsed = 0.0
-
-
-func _update_canvas_pan() -> void:
-	# GraphEdit scroll_offset is in visible canvas pixels.
-	var drag_delta := _canvas_current - _canvas_origin
-	Grid.set_scroll_offset(_canvas_start_scroll - drag_delta)
-
-
-func _begin_box_selection() -> void:
-	_canvas_mode = CanvasMode.BOX_SELECT
-	_clear_selection()
-	if _selection_overlay != null:
-		_selection_overlay.show()
-
-
-func _update_box_selection() -> void:
-	if _selection_overlay == null:
-		return
-
-	var top_left := Vector2(
-		minf(_canvas_origin.x, _canvas_current.x),
-		minf(_canvas_origin.y, _canvas_current.y)
-	)
-	var bottom_right := Vector2(
-		maxf(_canvas_origin.x, _canvas_current.x),
-		maxf(_canvas_origin.y, _canvas_current.y)
-	)
-
-	_selection_overlay.global_position = top_left
-	_selection_overlay.size = bottom_right - top_left
-
-
-func _apply_box_selection() -> void:
-	var top_left := Vector2(
-		minf(_canvas_origin.x, _canvas_current.x),
-		minf(_canvas_origin.y, _canvas_current.y)
-	)
-	var size := Vector2(
-		absf(_canvas_current.x - _canvas_origin.x),
-		absf(_canvas_current.y - _canvas_origin.y)
-	)
-
-	if size.x >= BOX_SELECT_START_DISTANCE and size.y >= BOX_SELECT_START_DISTANCE:
-		Grid.select_all_in(Rect2(top_left, size))
 
 
 func _hide_selection_overlay() -> void:
@@ -530,7 +497,6 @@ func _hide_selection_overlay() -> void:
 func _begin_node_hold(event: InputEventScreenTouch) -> void:
 	_node_hold_active = true
 	_node_hold_index = event.index
-	_node_hold_origin = event.position
 	_node_hold_current = event.position
 	_node_hold_elapsed = 0.0
 	_node_long_press_triggered = false
@@ -541,6 +507,7 @@ func _finish_node_hold(release_position: Vector2) -> void:
 	var was_long_press := _node_long_press_triggered
 	_cancel_node_hold()
 	if was_long_press:
+		_show_context_menu(release_position)
 		get_viewport().set_input_as_handled()
 
 
@@ -679,32 +646,17 @@ func _process(delta: float) -> void:
 		if _canvas_elapsed >= LONG_PRESS_SECONDS:
 			_canvas_mode = CanvasMode.LONG_READY
 			Input.vibrate_handheld(35)
-			_show_context_menu(_canvas_current)
 
 	if _node_hold_active:
 		_node_hold_elapsed += delta
 		if (
 			not _node_long_press_triggered
 			and _node_hold_elapsed >= LONG_PRESS_SECONDS
-			and _node_hold_origin.distance_to(_node_hold_current)
-				<= NODE_LONG_PRESS_MOVE_TOLERANCE
 		):
 			_node_long_press_triggered = true
 			Input.vibrate_handheld(35)
-			_show_context_menu(_node_hold_current)
 
 	_update_keyboard_avoidance(delta)
-
-
-func _show_long_press_indicator() -> void:
-	Input.vibrate_handheld(35)
-	if _selection_overlay == null:
-		return
-	_selection_overlay.global_position = (
-		_canvas_origin - Vector2.ONE * BOX_SELECT_START_DISTANCE * 0.5
-	)
-	_selection_overlay.size = Vector2.ONE * BOX_SELECT_START_DISTANCE
-	_selection_overlay.show()
 
 
 func _update_keyboard_avoidance(delta: float) -> void:

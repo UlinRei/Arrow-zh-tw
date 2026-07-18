@@ -71,6 +71,9 @@ func _configure_android_button() -> void:
 	expand_icon = true
 	custom_minimum_size = ANDROID_MENU_BUTTON_SIZE
 	tooltip_text = "Preferences"
+	# AndroidAdapter handles this touch target directly so MenuButton does not
+	# briefly open its popup while the finger is held down.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _open_android_preferences() -> void:
