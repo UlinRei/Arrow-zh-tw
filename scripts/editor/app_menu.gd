@@ -44,13 +44,13 @@ var _MENU_ITEMS_DATA = [
 # items listed by key to ...
 var _IDX = {} # indices
 var _ID = {} # ids
+var _android_preferences_queued := false
 
 func _ready() -> void:
 	_configure_android_button()
 	self.create_menu_items()
 	self.update_menu_items_view()
 	if OS.has_feature("android"):
-		pressed.connect(self._open_android_preferences)
 		popup.index_pressed.connect(self._on_android_popup_index_pressed)
 		popup.window_input.connect(self._on_android_popup_window_input)
 	else:
@@ -74,8 +74,29 @@ func _configure_android_button() -> void:
 
 
 func _open_android_preferences() -> void:
+	if _android_preferences_queued:
+		return
+	_android_preferences_queued = true
 	popup.hide.call_deferred()
 	Main.UI.call_deferred("set_panel_visibility", "preferences", true)
+	_reset_android_preferences_guard.call_deferred()
+
+
+func _reset_android_preferences_guard() -> void:
+	_android_preferences_queued = false
+
+
+func _gui_input(event: InputEvent) -> void:
+	if not OS.has_feature("android"):
+		return
+	var released := false
+	if event is InputEventScreenTouch:
+		released = not event.pressed
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		released = not event.pressed
+	if released:
+		accept_event()
+		_open_android_preferences()
 
 
 func _on_android_popup_index_pressed(index: int) -> void:

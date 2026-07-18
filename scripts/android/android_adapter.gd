@@ -14,9 +14,9 @@ const ANDROID_UI_SCALE_MIN := 1.0
 const ANDROID_UI_SCALE_MAX := 1.6
 const ANDROID_GRAPH_TOOL_SIZE := 64.0
 const ANDROID_GRAPH_TOOL_FONT_SIZE := 22
+const ANDROID_GRAPH_NUMBER_FONT_SIZE := 30
 const ANDROID_GRAPH_TOOL_ICON_SIZE := 40
 const ANDROID_TOP_ACTION_SCALE := 1.5
-const ANDROID_SAVE_WIDTH_SCALE := 1.35
 
 enum CanvasMode {
 	NONE,
@@ -169,7 +169,12 @@ func _resize_graph_toolbar_controls(parent: Node) -> void:
 					)
 					button.add_theme_constant_override("h_separation", 8)
 				if control is LineEdit:
-					(control as LineEdit).alignment = HORIZONTAL_ALIGNMENT_CENTER
+					var line_edit := control as LineEdit
+					line_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+					line_edit.add_theme_font_size_override(
+						"font_size",
+						ANDROID_GRAPH_NUMBER_FONT_SIZE
+					)
 				if control is Label:
 					var label := control as Label
 					label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -202,10 +207,12 @@ func _enlarge_top_right_actions() -> void:
 		"/root/Main/Editor/Top/Bar/Save"
 	) as Button
 	if save_button != null:
-		save_button.custom_minimum_size = Vector2(
-			94.0 * ANDROID_SAVE_WIDTH_SCALE,
+		save_button.text = ""
+		save_button.custom_minimum_size = Vector2.ONE * (
 			24.0 * ANDROID_TOP_ACTION_SCALE
 		)
+		save_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		save_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		save_button.add_theme_constant_override("icon_max_width", 30)
 
 
@@ -460,7 +467,8 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 			# A short tap on empty canvas clears the current selection.
 			_clear_selection()
 		CanvasMode.LONG_READY:
-			_show_context_menu(release_position)
+			# The menu is opened as soon as the long-press threshold is reached.
+			pass
 		CanvasMode.BOX_SELECT:
 			_apply_box_selection()
 
@@ -670,7 +678,8 @@ func _process(delta: float) -> void:
 		_canvas_elapsed += delta
 		if _canvas_elapsed >= LONG_PRESS_SECONDS:
 			_canvas_mode = CanvasMode.LONG_READY
-			_show_long_press_indicator()
+			Input.vibrate_handheld(35)
+			_show_context_menu(_canvas_current)
 
 	if _node_hold_active:
 		_node_hold_elapsed += delta
