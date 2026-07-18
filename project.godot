@@ -45,6 +45,11 @@ window/handheld/orientation=4
 
 project/assembly_name="Arrow"
 
+[input_devices]
+
+pointing/android/enable_long_press_as_right_click=true
+pointing/android/enable_pan_and_scale_gestures=true
+
 [input]
 
 arrow_save={
