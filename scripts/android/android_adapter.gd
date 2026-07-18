@@ -9,6 +9,9 @@ const BOX_SELECT_START_DISTANCE := 12.0
 const NODE_LONG_PRESS_MOVE_TOLERANCE := 18.0
 const KEYBOARD_MARGIN := 28.0
 const KEYBOARD_MOVE_SPEED := 1800.0
+const ANDROID_BASE_DPI := 160.0
+const ANDROID_UI_SCALE_MIN := 1.0
+const ANDROID_UI_SCALE_MAX := 1.6
 
 enum CanvasMode {
 	NONE,
@@ -42,6 +45,7 @@ var _node_hold_index := -1
 var _node_hold_origin := Vector2.ZERO
 var _node_hold_current := Vector2.ZERO
 var _node_hold_elapsed := 0.0
+var _node_long_press_triggered := false
 
 var _pinch_start_distance := 1.0
 var _pinch_start_zoom := 1.0
@@ -80,6 +84,7 @@ func _setup_android() -> void:
 	)
 
 	_main_base_position = Main.position
+	_apply_android_ui_scale()
 	_create_selection_overlay()
 	_configure_optional_android_controls()
 	_setup_complete = true
@@ -98,12 +103,28 @@ func _configure_optional_android_controls() -> void:
 	if work_dir_row is CanvasItem:
 		work_dir_row.hide()
 
-	var external_font_button := get_node_or_null(
-		"/root/Main/Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/Font/Selector/Tools/Browse"
+	var interface_font_row := get_node_or_null(
+		"/root/Main/Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/Font"
 	)
-	if external_font_button is BaseButton:
-		external_font_button.hide()
-		external_font_button.disabled = true
+	if interface_font_row is CanvasItem:
+		interface_font_row.hide()
+
+
+func _apply_android_ui_scale() -> void:
+	var dpi := float(DisplayServer.screen_get_dpi())
+	if dpi <= 0.0:
+		return
+
+	var android_scale := clampf(
+		dpi / ANDROID_BASE_DPI,
+		ANDROID_UI_SCALE_MIN,
+		ANDROID_UI_SCALE_MAX
+	)
+	var android_theme := Main.theme.duplicate() as Theme
+	if android_theme == null:
+		return
+	android_theme.default_base_scale = android_scale
+	Main.theme = android_theme
 
 
 func _create_selection_overlay() -> void:
@@ -136,6 +157,10 @@ func _input(event: InputEvent) -> void:
 		_handle_screen_touch(event)
 	elif event is InputEventScreenDrag:
 		_handle_screen_drag(event)
+	elif event is InputEventPanGesture:
+		_handle_pan_gesture(event)
+	elif event is InputEventMagnifyGesture:
+		_handle_magnify_gesture(event)
 
 
 func _handle_screen_touch(event: InputEventScreenTouch) -> void:
@@ -219,6 +244,42 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 			_cancel_node_hold()
 
 
+func _handle_pan_gesture(event: InputEventPanGesture) -> void:
+	if not Grid.get_global_rect().has_point(event.position):
+		return
+	_cancel_active_canvas_gesture()
+	Grid.set_scroll_offset(Grid.get_scroll_offset() + event.delta)
+	get_viewport().set_input_as_handled()
+
+
+func _handle_magnify_gesture(event: InputEventMagnifyGesture) -> void:
+	if not Grid.get_global_rect().has_point(event.position):
+		return
+
+	_cancel_active_canvas_gesture()
+	var local_anchor: Vector2 = Grid.to_local(event.position)
+	var old_zoom := Grid.get_zoom()
+	var graph_anchor: Vector2 = (
+		Grid.get_scroll_offset() + local_anchor
+	) / old_zoom
+	var new_zoom := clampf(
+		old_zoom * event.factor,
+		Grid.get_zoom_min(),
+		Grid.get_zoom_max()
+	)
+	Grid.set_zoom(new_zoom)
+	Grid.set_scroll_offset(graph_anchor * new_zoom - local_anchor)
+	get_viewport().set_input_as_handled()
+
+
+func _cancel_active_canvas_gesture() -> void:
+	_cancel_node_hold()
+	_hide_selection_overlay()
+	_canvas_mode = CanvasMode.NONE
+	_canvas_touch_index = -1
+	_canvas_elapsed = 0.0
+
+
 func _begin_canvas_touch(event: InputEventScreenTouch) -> void:
 	_canvas_mode = CanvasMode.PENDING
 	_canvas_touch_index = event.index
@@ -236,7 +297,8 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 			# A short tap on empty canvas clears the current selection.
 			_clear_selection()
 		CanvasMode.LONG_READY:
-			_show_context_menu(release_position)
+			# The menu is opened as soon as the hold threshold is reached.
+			pass
 		CanvasMode.BOX_SELECT:
 			_apply_box_selection()
 
@@ -301,27 +363,22 @@ func _begin_node_hold(event: InputEventScreenTouch) -> void:
 	_node_hold_origin = event.position
 	_node_hold_current = event.position
 	_node_hold_elapsed = 0.0
+	_node_long_press_triggered = false
 
 
 func _finish_node_hold(release_position: Vector2) -> void:
 	_node_hold_current = release_position
-	var was_long_press := (
-		_node_hold_elapsed >= LONG_PRESS_SECONDS
-		and _node_hold_origin.distance_to(_node_hold_current)
-			<= NODE_LONG_PRESS_MOVE_TOLERANCE
-	)
-
+	var was_long_press := _node_long_press_triggered
 	_cancel_node_hold()
-
 	if was_long_press:
 		get_viewport().set_input_as_handled()
-		call_deferred("_show_context_menu", release_position)
 
 
 func _cancel_node_hold() -> void:
 	_node_hold_active = false
 	_node_hold_index = -1
 	_node_hold_elapsed = 0.0
+	_node_long_press_triggered = false
 
 
 func _begin_pinch() -> void:
@@ -400,7 +457,7 @@ func _is_empty_canvas_point(global_position: Vector2) -> bool:
 		return false
 
 	# Do not intercept GraphEdit's built-in top toolbar.
-	var local_position := Grid.to_local(global_position)
+	var local_position: Vector2 = Grid.to_local(global_position)
 	if local_position.y < 42.0:
 		return false
 
@@ -450,9 +507,18 @@ func _process(delta: float) -> void:
 		_canvas_elapsed += delta
 		if _canvas_elapsed >= LONG_PRESS_SECONDS:
 			_canvas_mode = CanvasMode.LONG_READY
+			_show_context_menu(_canvas_current)
 
 	if _node_hold_active:
 		_node_hold_elapsed += delta
+		if (
+			not _node_long_press_triggered
+			and _node_hold_elapsed >= LONG_PRESS_SECONDS
+			and _node_hold_origin.distance_to(_node_hold_current)
+				<= NODE_LONG_PRESS_MOVE_TOLERANCE
+		):
+			_node_long_press_triggered = true
+			_show_context_menu(_node_hold_current)
 
 	_update_keyboard_avoidance(delta)
 

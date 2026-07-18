@@ -5,6 +5,8 @@
 # App Menu
 extends MenuButton
 
+const ANDROID_MENU_BUTTON_SIZE := Vector2(64.0, 56.0)
+
 @onready var TheTree = get_tree()
 @onready var TheWindow = TheTree.get_root()
 @onready var Main = TheWindow.get_child(0)
@@ -44,10 +46,26 @@ var _IDX = {} # indices
 var _ID = {} # ids
 
 func _ready() -> void:
+	_configure_android_button()
 	self.create_menu_items()
 	self.update_menu_items_view()
 	popup.id_pressed.connect(self._on_self_popup_item_id_pressed, CONNECT_DEFERRED)
 	pass
+
+
+func _configure_android_button() -> void:
+	if not OS.has_feature("android"):
+		return
+
+	var app_icon := load("res://icon.svg") as Texture2D
+	if app_icon == null:
+		return
+
+	text = ""
+	icon = app_icon
+	expand_icon = true
+	custom_minimum_size = ANDROID_MENU_BUTTON_SIZE
+	tooltip_text = "Arrow"
 
 func create_menu_items() -> void:
 	popup.clear()

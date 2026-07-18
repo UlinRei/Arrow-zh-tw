@@ -6,7 +6,7 @@
 # Acts as a general purpose file/dir path prompt. Check out `Settings::PATH_DIALOG_PROPERTIES`.
 extends FileDialog
 
-const IS_ANDROID := OS.get_name() == "Android"
+var IS_ANDROID := OS.get_name() == "Android"
 
 @onready var Main = get_tree().get_root().get_child(0)
 @onready var BlockingOverlay = $/root/Main/Overlays/Control/Blocker
