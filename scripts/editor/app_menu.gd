@@ -49,7 +49,10 @@ func _ready() -> void:
 	_configure_android_button()
 	self.create_menu_items()
 	self.update_menu_items_view()
-	popup.id_pressed.connect(self._on_self_popup_item_id_pressed, CONNECT_DEFERRED)
+	if OS.has_feature("android"):
+		popup.index_pressed.connect(self._on_android_popup_index_pressed)
+	else:
+		popup.id_pressed.connect(self._on_self_popup_item_id_pressed, CONNECT_DEFERRED)
 	pass
 
 
@@ -66,6 +69,11 @@ func _configure_android_button() -> void:
 	expand_icon = true
 	custom_minimum_size = ANDROID_MENU_BUTTON_SIZE
 	tooltip_text = "Arrow"
+
+
+func _on_android_popup_index_pressed(index: int) -> void:
+	var item_id := popup.get_item_id(index)
+	_on_self_popup_item_id_pressed(item_id)
 
 func create_menu_items() -> void:
 	popup.clear()

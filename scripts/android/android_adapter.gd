@@ -86,13 +86,13 @@ func _setup_android() -> void:
 	)
 
 	_main_base_position = Main.position
-	_apply_android_ui_scale()
+	_setup_complete = true
 	Grid.child_entered_tree.connect(_refresh_android_graph_node)
 	for child in Grid.get_children():
 		_refresh_android_graph_node(child)
 	_create_selection_overlay()
 	_configure_optional_android_controls()
-	_setup_complete = true
+	_apply_android_ui_scale()
 
 
 func _configure_optional_android_controls() -> void:
@@ -125,23 +125,7 @@ func _apply_android_ui_scale() -> void:
 		ANDROID_UI_SCALE_MIN,
 		ANDROID_UI_SCALE_MAX
 	)
-	var base_theme := Main.theme
-	var android_theme := base_theme.duplicate() as Theme
-	if android_theme == null:
-		return
-	var canvas_theme := base_theme.duplicate() as Theme
-	if canvas_theme != null:
-		canvas_theme.default_base_scale = 1.0
-		Grid.theme = canvas_theme
-	android_theme.default_base_scale = android_scale
-	for layer_path in [
-		"/root/Main",
-		"/root/Main/Overlays/Control",
-		"/root/Main/FloatingTools/Control",
-	]:
-		var layer := get_node_or_null(layer_path) as Control
-		if layer != null:
-			layer.theme = android_theme.duplicate()
+	get_window().content_scale_factor = android_scale
 
 
 func _create_selection_overlay() -> void:
