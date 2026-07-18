@@ -15,6 +15,8 @@ const ANDROID_UI_SCALE_MAX := 1.6
 const ANDROID_GRAPH_TOOL_SIZE := 64.0
 const ANDROID_GRAPH_TOOL_FONT_SIZE := 22
 const ANDROID_GRAPH_TOOL_ICON_SIZE := 40
+const ANDROID_TOP_ACTION_SCALE := 1.5
+const ANDROID_SAVE_WIDTH_SCALE := 1.35
 
 enum CanvasMode {
 	NONE,
@@ -97,6 +99,7 @@ func _setup_android() -> void:
 	_configure_optional_android_controls()
 	_apply_android_ui_scale()
 	_enlarge_graph_toolbar.call_deferred()
+	_enlarge_top_right_actions.call_deferred()
 
 
 func _configure_optional_android_controls() -> void:
@@ -167,6 +170,10 @@ func _resize_graph_toolbar_controls(parent: Node) -> void:
 					button.add_theme_constant_override("h_separation", 8)
 				if control is LineEdit:
 					(control as LineEdit).alignment = HORIZONTAL_ALIGNMENT_CENTER
+				if control is Label:
+					var label := control as Label
+					label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+					label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 				if control is BoxContainer:
 					control.add_theme_constant_override("separation", 8)
 				control.add_theme_font_size_override(
@@ -174,6 +181,32 @@ func _resize_graph_toolbar_controls(parent: Node) -> void:
 					ANDROID_GRAPH_TOOL_FONT_SIZE
 				)
 		_resize_graph_toolbar_controls(child)
+
+
+func _enlarge_top_right_actions() -> void:
+	await get_tree().process_frame
+	var play_buttons := get_node_or_null(
+		"/root/Main/Editor/Top/Bar/Play/From"
+	) as Container
+	if play_buttons != null:
+		for child in play_buttons.get_children():
+			if child is Button:
+				var button := child as Button
+				button.custom_minimum_size = Vector2.ONE * (
+					24.0 * ANDROID_TOP_ACTION_SCALE
+				)
+				button.expand_icon = true
+				button.add_theme_constant_override("icon_max_width", 30)
+
+	var save_button := get_node_or_null(
+		"/root/Main/Editor/Top/Bar/Save"
+	) as Button
+	if save_button != null:
+		save_button.custom_minimum_size = Vector2(
+			94.0 * ANDROID_SAVE_WIDTH_SCALE,
+			24.0 * ANDROID_TOP_ACTION_SCALE
+		)
+		save_button.add_theme_constant_override("icon_max_width", 30)
 
 
 func _create_selection_overlay() -> void:

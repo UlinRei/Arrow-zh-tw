@@ -418,6 +418,7 @@ func update_grid_node_box(instance_or_id, node:Dictionary) -> void:
 		var data_clone = node.data.duplicate(true) 
 		if OS.has_feature("android"):
 			node_instance.call("_update_node", data_clone)
+			_force_android_content_preview(node_instance, data_clone)
 			_resize_android_node_after_update.call_deferred(
 				node_instance,
 				data_clone
@@ -438,7 +439,34 @@ func _resize_android_node_after_update(
 ) -> void:
 	await get_tree().process_frame
 	if is_instance_valid(node_instance):
+		_force_android_content_preview(node_instance, data)
 		resize_to_best_fit(node_instance, data)
+
+
+func _force_android_content_preview(
+	node_instance: GraphNode,
+	data: Dictionary
+) -> void:
+	var title := node_instance.get_node_or_null("Display/Title") as RichTextLabel
+	var brief := node_instance.get_node_or_null("Display/Brief") as RichTextLabel
+	if title == null or brief == null:
+		return
+
+	var title_text := str(data.get("title", ""))
+	title.text = title_text
+	title.visible = not title_text.is_empty()
+
+	var brief_text := ""
+	var brief_value = data.get("brief", 0)
+	if brief_value is String and not brief_value.is_valid_int():
+		brief_text = brief_value
+	else:
+		var brief_length := int(brief_value)
+		var content_text := str(data.get("content", ""))
+		if brief_length > 0:
+			brief_text = content_text.substr(0, brief_length)
+	brief.text = brief_text
+	brief.visible = not brief_text.is_empty()
 
 func update_grid_node_map(instance_or_id, map:Dictionary) -> void:
 	var node_instance = get_node_instance(instance_or_id)

@@ -25,14 +25,9 @@ var This = self
 @onready var AutoPlay = $Display/Head/AutoPlay
 @onready var ClearPage = $Display/Head/ClearPage
 
-func _ready() -> void:
-	if OS.has_feature("android"):
-		_refresh_android_preview.call_deferred()
-
-
-func _refresh_android_preview() -> void:
-	if _node_resource is Dictionary and _node_resource.has("data"):
-		_update_node(_node_resource.data.duplicate(true))
+#func _ready() -> void:
+#	register_connections()
+#	pass
 
 #func register_connections() -> void:
 #	# e.g. SOME_CHILD.connect("the_signal", self, "the_handler_on_self", [], CONNECT_DEFERRED)
