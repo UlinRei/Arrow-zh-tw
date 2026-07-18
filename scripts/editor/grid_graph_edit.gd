@@ -451,6 +451,8 @@ func _resize_android_node_after_update(
 		var android_preview_size := base_size * 1.20
 		node_instance.custom_minimum_size = android_preview_size
 		node_instance.size = android_preview_size
+		node_instance.set_deferred("size", android_preview_size)
+		node_instance.queue_sort()
 
 
 func _force_android_content_preview(

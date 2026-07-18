@@ -196,12 +196,37 @@ class UiManager :
 			var as_node = PANELS[panel]
 			@warning_ignore("INCOMPATIBLE_TERNARY")
 			var is_open = is_panel_open(panel) if PANELS_OPEN_BY_DEFAULT.has(panel) else null
-			stateful[panel] = {
-				"size": as_node.get_size(),
-				"position": as_node.get_position(),
-				"open": is_open,
-			}
+			if OS.has_feature("android") && panel == "inspector":
+				# Desktop pixel coordinates are not valid on a mobile viewport.
+				# Keep Android's Inspector in its responsive scene layout.
+				stateful[panel] = {
+					"size": Vector2.ZERO,
+					"position": Vector2.ZERO,
+					"open": true,
+				}
+			else:
+				stateful[panel] = {
+					"size": as_node.get_size(),
+					"position": as_node.get_position(),
+					"open": is_open,
+				}
 		return stateful
+
+	func _apply_android_inspector_layout() -> void:
+		if not OS.has_feature("android"):
+			return
+		var inspector := PANELS.inspector as Control
+		inspector.anchor_left = 0.70
+		inspector.anchor_top = 0.115
+		inspector.anchor_right = 0.975
+		inspector.anchor_bottom = 0.855
+		inspector.offset_left = 0.0
+		inspector.offset_top = 0.0
+		inspector.offset_right = 0.0
+		inspector.offset_bottom = 0.0
+		inspector.visible = true
+		MAIN_UI.inspector_view_toggle.set_pressed_no_signal(true)
+		track_open_panels("inspector", true)
 	
 	var _WINDOW_RESTORED: bool = false
 	var _PANELS_TRACKED: Dictionary = {}
@@ -222,11 +247,15 @@ class UiManager :
 			for panel in _PANELS_TRACKED:
 				var as_node = PANELS[panel]
 				var state = _PANELS_TRACKED[panel]
+				if OS.has_feature("android") && panel == "inspector":
+					_apply_android_inspector_layout()
+					continue
 				as_node.call_deferred("_set_size", state.size)
 				as_node.call_deferred("_set_position", state.position)
 				if state.open is bool:
 					self.call_deferred("set_panel_visibility", panel, state.open)
 			_PANELS_TRACKED = {}
+			_apply_android_inspector_layout.call_deferred()
 		pass
 
 	func read_window_state() -> Dictionary:

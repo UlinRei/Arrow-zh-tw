@@ -55,9 +55,8 @@ func register_connections() -> void:
 	pass
 
 func try_cache_node_type_list_from_mind(refresh_list:bool = true):
-	if _NODE_INSERT_LIST_FULL.size() == 0:
-		if Main.Mind && Main.Mind.NODE_TYPES_LIST:
-			_NODE_INSERT_LIST_FULL = Main.Mind.NODE_TYPES_LIST
+	if Main.Mind && Main.Mind.NODE_TYPES_LIST:
+		_NODE_INSERT_LIST_FULL = Main.Mind.NODE_TYPES_LIST.duplicate(true)
 	if refresh_list:
 		filter_node_insert_list_items_view()
 	pass
@@ -78,11 +77,26 @@ func _on_about_to_popup() -> void:
 	try_cache_node_type_list_from_mind(true)
 	reset_quick_edit_buttons()
 	if OS.has_feature("android"):
-		NodeInsertList.custom_minimum_size = Vector2(300, 190)
+		NodeInsertList.custom_minimum_size = Vector2(360, 240)
+		_refresh_android_node_type_list.call_deferred()
 		call_deferred("_fit_android_popup_to_viewport")
 	NodeInsertList.grab_focus.call_deferred()
 	NodeInsertList.ensure_current_is_visible.call_deferred()
 	pass
+
+func _refresh_android_node_type_list() -> void:
+	# The Android scene can display this popup before the mind has finished
+	# publishing its node registry. Retry for a few rendered frames instead of
+	# leaving a permanently empty ItemList.
+	for attempt in range(8):
+		if Main.Mind && Main.Mind.NODE_TYPES_LIST.size() > 0:
+			_NODE_INSERT_LIST_FULL = Main.Mind.NODE_TYPES_LIST.duplicate(true)
+			filter_node_insert_list_items_view()
+			NodeInsertList.visible = true
+			NodeInsertList.queue_redraw()
+			_fit_android_popup_to_viewport.call_deferred()
+			return
+		await get_tree().process_frame
 
 func _on_window_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:

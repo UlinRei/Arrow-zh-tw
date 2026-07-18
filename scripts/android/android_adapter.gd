@@ -121,27 +121,9 @@ func _setup_android() -> void:
 	_apply_android_ui_scale()
 	_enlarge_graph_toolbar.call_deferred()
 	_enlarge_top_right_actions.call_deferred()
-	_restore_android_inspector_layout.call_deferred()
+	Main.UI.call_deferred("_apply_android_inspector_layout")
 	if InspectorToggleButton != null:
 		InspectorToggleButton.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-
-func _restore_android_inspector_layout() -> void:
-	# Configuration restoration runs after a short timer. Wait until it has
-	# finished, then discard any previously saved off-screen Android geometry.
-	await get_tree().create_timer(0.45).timeout
-	if InspectorPanel == null:
-		return
-	InspectorPanel.anchor_left = 0.70
-	InspectorPanel.anchor_top = 0.115
-	InspectorPanel.anchor_right = 0.975
-	InspectorPanel.anchor_bottom = 0.855
-	InspectorPanel.offset_left = 0.0
-	InspectorPanel.offset_top = 0.0
-	InspectorPanel.offset_right = 0.0
-	InspectorPanel.offset_bottom = 0.0
-	_inspector_base_position = InspectorPanel.position
-	Main.UI.set_panel_visibility("inspector", true)
 
 
 func _configure_optional_android_controls() -> void:
@@ -543,8 +525,9 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 func _handle_pan_gesture(event: InputEventPanGesture) -> void:
 	if not Grid.get_global_rect().has_point(event.position):
 		return
-	_cancel_active_canvas_gesture()
-	Grid.set_scroll_offset(Grid.get_scroll_offset() + event.delta)
+	# Android emits PanGesture while a finger is held nearly still. Treating it
+	# as navigation cancels every long press. Single-touch canvas movement is
+	# intentionally disabled; the minimap remains independently interactive.
 	get_viewport().set_input_as_handled()
 
 
