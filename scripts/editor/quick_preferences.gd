@@ -47,14 +47,30 @@ func _on_android_popup_index_pressed(index: int) -> void:
 
 func _on_android_popup_window_input(event: InputEvent) -> void:
 	var released := false
+	var release_position := Vector2.ZERO
 	if event is InputEventScreenTouch:
 		released = not event.pressed
+		release_position = event.position
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		released = not event.pressed
+		release_position = event.position
 	if released:
-		_activate_android_popup_index.call_deferred(
-			QuickPreferencesPopup.get_focused_item()
+		var index := _android_item_at_position(release_position)
+		if index < 0:
+			index = QuickPreferencesPopup.get_focused_item()
+		_activate_android_popup_index.call_deferred(index)
+
+
+func _android_item_at_position(position: Vector2) -> int:
+	var item_top := 0.0
+	for index in QuickPreferencesPopup.item_count:
+		var item_bottom: float = (
+			item_top + float(QuickPreferencesPopup.get_item_height(index))
 		)
+		if position.y >= item_top and position.y < item_bottom:
+			return index
+		item_top = item_bottom
+	return -1
 
 
 func _activate_android_popup_index(index: int) -> void:

@@ -325,6 +325,20 @@ func submit_scene_modification() -> void:
 	pass
 
 func _on_list_gui_input(event: InputEvent) -> void:
+	if (
+		OS.has_feature("android")
+		and event is InputEventScreenTouch
+		and not event.pressed
+	):
+		var touched_index: int = int(
+			ScenesList.get_item_at_position(event.position, true)
+		)
+		if touched_index >= 0:
+			ScenesList.select(touched_index)
+			_on_scenes_list_item_selected(touched_index)
+			ScenesList.ensure_current_is_visible()
+			ScenesList.accept_event()
+		return
 	if event is InputEventKey:
 		if event.is_echo() == false && event.is_pressed() == true:
 			if event.is_ctrl_pressed():

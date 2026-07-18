@@ -89,9 +89,12 @@ func is_snapshot_preview() -> bool:
 
 func setup_node_type_sub_inspectors(node_type_list:Dictionary) -> void:
 	NODE_TYPES_LIST_CACHE = node_type_list
-	SUB_INSPECTORS = {}
+	if SUB_INSPECTORS == null:
+		SUB_INSPECTORS = {}
 	for node_type in NODE_TYPES_LIST_CACHE:
 		var node_type_data = NODE_TYPES_LIST_CACHE[node_type]
+		if SUB_INSPECTORS.has(node_type_data.type):
+			continue
 		var the_sub_inspector = node_type_data.inspector.instantiate()
 		the_sub_inspector.set("visible", false)
 		SubInspectorHolder.add_child(the_sub_inspector)
@@ -121,12 +124,18 @@ func total_clean_up(keep_history:bool = false) -> void:
 
 func toggle_sub_inspector_block(force = null) -> void:
 	var new_status = force if (force is bool) else (! _CURRENT_STATE_OF_SUB_INSPECTOR_BLOCKER)
-	InspectorBlocker.set_deferred("visible", new_status)
-	InspectorNodeProperties.set_deferred("visible", (!new_status))
+	if OS.has_feature("android"):
+		InspectorBlocker.visible = new_status
+		InspectorNodeProperties.visible = not new_status
+	else:
+		InspectorBlocker.set_deferred("visible", new_status)
+		InspectorNodeProperties.set_deferred("visible", (!new_status))
 	_CURRENT_STATE_OF_SUB_INSPECTOR_BLOCKER = new_status
 	pass
 
 func update_node_tab(node_id:int, node:Dictionary, node_map:Dictionary, reset_history_rotator:bool = true) -> void:
+	if SUB_INSPECTORS == null or not SUB_INSPECTORS.has(node.type):
+		setup_node_type_sub_inspectors(Main.Mind.NODE_TYPES_LIST)
 	var another_node = (node_id != _CURRENT_INSPECTED_NODE_RESOURCE_ID)
 	# keep a reference to it for later update requests to the mind,
 	_CURRENT_INSPECTED_NODE = node
@@ -139,10 +148,16 @@ func update_node_tab(node_id:int, node:Dictionary, node_map:Dictionary, reset_hi
 		update_parameters(node_id, node, node_map, the_sub_inspector)
 	# keep track of the last open sub-inspector
 	if _LAST_OPEN_SUB_INSPECTOR != null:
-		_LAST_OPEN_SUB_INSPECTOR.set_deferred("visible", false)
+		if OS.has_feature("android"):
+			_LAST_OPEN_SUB_INSPECTOR.visible = false
+		else:
+			_LAST_OPEN_SUB_INSPECTOR.set_deferred("visible", false)
 	else:
 		toggle_sub_inspector_block(false)
-	the_sub_inspector.set_deferred("visible", true)
+	if OS.has_feature("android"):
+		the_sub_inspector.visible = true
+	else:
+		the_sub_inspector.set_deferred("visible", true)
 	_LAST_OPEN_SUB_INSPECTOR = the_sub_inspector
 	if reset_history_rotator:
 		reset_node_history_rotation(node_id)
@@ -252,29 +267,12 @@ func refresh_referrers_list() -> void:
 		update_referrers_list(_CURRENT_INSPECTED_NODE_RESOURCE_ID)
 	pass
 
-func update_referrers_list(node_id:int = _CURRENT_INSPECTED_NODE_RESOURCE_ID) -> void:
-	NodeReferrersListPopUp.clear()
+func update_referrers_list(_node_id:int = _CURRENT_INSPECTED_NODE_RESOURCE_ID) -> void:
+	# The current upstream interface no longer exposes the legacy referrer
+	# navigator. Keep its old scene nodes inert for project compatibility.
+	NodeReferrersGroup.hide()
 	_CURRENT_INSPECTED_NODE_REFERRERS_IDS = []
-	_CURRENT_INSPECTED_NODE_REFERRERS = Main.Mind.list_referrers(node_id)
-	var referrers_size = _CURRENT_INSPECTED_NODE_REFERRERS.size()
-	if referrers_size > 0 :
-		NodeReferrersGroup.set_visible(true)
-		var item_index := 0
-		for user_node_id in _CURRENT_INSPECTED_NODE_REFERRERS:
-			if NodeReferrersFilterForScene.is_pressed() == false || Main.Mind.scene_owns_node(user_node_id) != null:
-				var user_node = _CURRENT_INSPECTED_NODE_REFERRERS[user_node_id]
-				_CURRENT_INSPECTED_NODE_REFERRERS_IDS.append(user_node_id)
-				var user_node_name = user_node.name if user_node.has("name") else ("Unnamed - %s" % user_node_id)
-				NodeReferrersListPopUp.add_item(user_node_name, user_node_id)
-				NodeReferrersListPopUp.set_item_metadata(item_index, user_node_id)
-				item_index += 1
-		NodeReferrersList.set_text( REFERRERS_MENU_BUTTON_TEXT_TEMPLATE.format([item_index, referrers_size]) )
-		var no_option = (item_index == 0)
-		NodeReferrersGoToNext.set_disabled(no_option)
-		NodeReferrersList.set_disabled(no_option)
-		NodeReferrersGoToPrevious.set_disabled(no_option)
-	else:
-		NodeReferrersGroup.set_visible(false)
+	_CURRENT_INSPECTED_NODE_REFERRERS = {}
 	pass
 
 func _on_go_to_menu_button_popup_index_pressed(referrer_idx:int) -> void:

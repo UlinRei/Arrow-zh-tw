@@ -33,10 +33,30 @@ var _QUICK_INSERT_TARGET = null
 const CLIPBOARD_MODE = Settings.CLIPBOARD_MODE
 
 var _NODE_INSERT_LIST_FULL = []
+var _ANDROID_NODE_BUTTONS_SCROLL: ScrollContainer
+var _ANDROID_NODE_BUTTONS: VBoxContainer
 
 func _ready() -> void:
 	register_connections()
+	if OS.has_feature("android"):
+		_setup_android_node_buttons()
 	pass
+
+func _setup_android_node_buttons() -> void:
+	_ANDROID_NODE_BUTTONS_SCROLL = ScrollContainer.new()
+	_ANDROID_NODE_BUTTONS_SCROLL.name = "AndroidNodeButtonsScroll"
+	_ANDROID_NODE_BUTTONS_SCROLL.custom_minimum_size = Vector2(360, 240)
+	_ANDROID_NODE_BUTTONS_SCROLL.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_ANDROID_NODE_BUTTONS_SCROLL.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_ANDROID_NODE_BUTTONS = VBoxContainer.new()
+	_ANDROID_NODE_BUTTONS.name = "AndroidNodeButtons"
+	_ANDROID_NODE_BUTTONS.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_ANDROID_NODE_BUTTONS.add_theme_constant_override("separation", 6)
+	_ANDROID_NODE_BUTTONS_SCROLL.add_child(_ANDROID_NODE_BUTTONS)
+	var types_box := NodeInsertList.get_parent()
+	types_box.add_child(_ANDROID_NODE_BUTTONS_SCROLL)
+	types_box.move_child(_ANDROID_NODE_BUTTONS_SCROLL, 0)
+	NodeInsertList.hide()
 
 func register_connections() -> void:
 	self.about_to_popup.connect(self._on_about_to_popup)
@@ -92,11 +112,44 @@ func _refresh_android_node_type_list() -> void:
 		if Main.Mind && Main.Mind.NODE_TYPES_LIST.size() > 0:
 			_NODE_INSERT_LIST_FULL = Main.Mind.NODE_TYPES_LIST.duplicate(true)
 			filter_node_insert_list_items_view()
-			NodeInsertList.visible = true
-			NodeInsertList.queue_redraw()
+			_populate_android_node_buttons()
 			_fit_android_popup_to_viewport.call_deferred()
 			return
 		await get_tree().process_frame
+
+func _populate_android_node_buttons() -> void:
+	if _ANDROID_NODE_BUTTONS == null:
+		return
+	for child in _ANDROID_NODE_BUTTONS.get_children():
+		child.queue_free()
+	var restricted_items := get_restricted_types()
+	for item_type in _NODE_INSERT_LIST_FULL:
+		if restricted_items.has(item_type):
+			continue
+		var item_details = _NODE_INSERT_LIST_FULL[item_type]
+		var button := Button.new()
+		button.text = item_details.text
+		button.icon = item_details.icon
+		button.expand_icon = true
+		button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.custom_minimum_size = Vector2(0, 54)
+		button.add_theme_constant_override("icon_max_width", 40)
+		button.pressed.connect(_on_android_node_type_pressed.bind(item_details))
+		_ANDROID_NODE_BUTTONS.add_child(button)
+
+func _on_android_node_type_pressed(item_details: Dictionary) -> void:
+	if _QUICK_INSERT_MODE:
+		_request_mind("quick_insert_node", {
+			"node": item_details.type,
+			"offset": _CLICK_POINT_OFFSET,
+			"connection": _QUICK_INSERT_TARGET,
+		}, true)
+	else:
+		_request_mind("insert_node", {
+			"nodes": [item_details.type],
+			"offset": _CLICK_POINT_OFFSET,
+		}, true)
 
 func _on_window_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -142,7 +195,9 @@ func disable_insert_button_if_nothing_is_there(force_disabled:bool = false) -> v
 func set_quick_insert_mode(target = null) -> void:
 	_QUICK_INSERT_MODE = (target is Array && target.size() == 3)
 	_QUICK_INSERT_TARGET = (target if _QUICK_INSERT_MODE else null)
-	NodeInsertFilterForm.set_visible( ! _QUICK_INSERT_MODE )
+	NodeInsertFilterForm.set_visible(
+		not _QUICK_INSERT_MODE and not OS.has_feature("android")
+	)
 	EditToolBox.set_visible( ! _QUICK_INSERT_MODE )
 	NodeInsertList.set_select_mode( ItemList.SELECT_SINGLE if _QUICK_INSERT_MODE else ItemList.SELECT_MULTI )
 	NodeInsertList.set_default_cursor_shape(

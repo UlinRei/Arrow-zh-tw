@@ -35,11 +35,14 @@ var AppMenuButton: MenuButton
 var QuickPreferencesButton: MenuButton
 var SaveButton: Button
 var InspectorToggleButton: Button
+var BottomQuery: Control
+var BottomPanel: Control
 
 var _setup_complete := false
 var _inspector_base_position := Vector2.ZERO
 var _keyboard_shift := 0.0
 var _keyboard_avoidance_active := false
+var _bottom_panel_base_position := Vector2.ZERO
 
 var _touch_points: Dictionary = {}
 var _suppress_emulated_canvas_mouse := false
@@ -106,6 +109,12 @@ func _setup_android() -> void:
 	InspectorToggleButton = get_node_or_null(
 		"/root/Main/Editor/Bottom/Bar/Quick/Access/InspectorVisibility"
 	) as Button
+	BottomQuery = get_node_or_null(
+		"/root/Main/Editor/Bottom/Bar/Query"
+	) as Control
+	BottomPanel = get_node_or_null(
+		"/root/Main/Editor/Bottom"
+	) as Control
 
 	DisplayServer.screen_set_orientation(
 		DisplayServer.SCREEN_SENSOR_LANDSCAPE
@@ -113,6 +122,8 @@ func _setup_android() -> void:
 
 	if InspectorPanel != null:
 		_inspector_base_position = InspectorPanel.position
+	if BottomPanel != null:
+		_bottom_panel_base_position = BottomPanel.position
 	_setup_complete = true
 	Grid.child_entered_tree.connect(_refresh_android_graph_node)
 	for child in Grid.get_children():
@@ -127,6 +138,15 @@ func _setup_android() -> void:
 
 
 func _configure_optional_android_controls() -> void:
+	var preferences_panel := get_node_or_null(
+		"/root/Main/Overlays/Control/Preferences"
+	) as Control
+	if preferences_panel != null:
+		preferences_panel.anchor_top = 0.08
+		preferences_panel.anchor_bottom = 0.92
+		preferences_panel.offset_top = 0.0
+		preferences_panel.offset_bottom = 0.0
+
 	var path_dialog := get_node_or_null(
 		"/root/Main/Overlays/Control/PathDialog"
 	)
@@ -144,7 +164,6 @@ func _configure_optional_android_controls() -> void:
 	)
 	if interface_font_row is CanvasItem:
 		interface_font_row.hide()
-
 
 func _apply_android_ui_scale() -> void:
 	var dpi := float(DisplayServer.screen_get_dpi())
@@ -474,7 +493,7 @@ func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
 		_save_touch_index = -1
 		SaveButton.set_pressed_no_signal(false)
 		if SaveButton.get_global_rect().has_point(event.position):
-			SaveButton.pressed.emit()
+			Main.Mind.call_deferred("save_project")
 		return true
 	if event.index == _inspector_toggle_touch_index:
 		_inspector_toggle_touch_index = -1
@@ -756,7 +775,7 @@ func _process(delta: float) -> void:
 
 
 func _update_keyboard_avoidance(delta: float) -> void:
-	if InspectorPanel == null:
+	if InspectorPanel == null or BottomPanel == null:
 		return
 
 	var keyboard_visible := DisplayServer.virtual_keyboard_get_height() > 0
@@ -766,9 +785,20 @@ func _update_keyboard_avoidance(delta: float) -> void:
 		and focused.is_visible_in_tree()
 		and InspectorPanel.is_ancestor_of(focused)
 	)
+	var bottom_query_has_focus := (
+		focused != null
+		and focused.is_visible_in_tree()
+		and BottomQuery != null
+		and (focused == BottomQuery or BottomQuery.is_ancestor_of(focused))
+	)
 
-	if keyboard_visible and inspector_has_focus and not _keyboard_avoidance_active:
+	if (
+		keyboard_visible
+		and (inspector_has_focus or bottom_query_has_focus)
+		and not _keyboard_avoidance_active
+	):
 		_inspector_base_position = InspectorPanel.position
+		_bottom_panel_base_position = BottomPanel.position
 		_keyboard_avoidance_active = true
 
 	if not _keyboard_avoidance_active:
@@ -781,12 +811,19 @@ func _update_keyboard_avoidance(delta: float) -> void:
 		KEYBOARD_MOVE_SPEED * delta
 	)
 
-	InspectorPanel.position = _inspector_base_position + Vector2(
-		0.0,
-		round(_keyboard_shift)
-	)
+	if inspector_has_focus:
+		InspectorPanel.position = _inspector_base_position + Vector2(
+			0.0,
+			round(_keyboard_shift)
+		)
+	if bottom_query_has_focus:
+		BottomPanel.position = _bottom_panel_base_position + Vector2(
+			0.0,
+			round(_keyboard_shift)
+		)
 	if not keyboard_visible and is_zero_approx(_keyboard_shift):
 		InspectorPanel.position = _inspector_base_position
+		BottomPanel.position = _bottom_panel_base_position
 		_keyboard_avoidance_active = false
 
 
@@ -798,7 +835,15 @@ func _calculate_keyboard_shift() -> float:
 	var focused := get_viewport().gui_get_focus_owner() as Control
 	if focused == null or not focused.is_visible_in_tree():
 		return 0.0
-	if InspectorPanel == null or not InspectorPanel.is_ancestor_of(focused):
+	var movable_panel: Control = null
+	if InspectorPanel != null and InspectorPanel.is_ancestor_of(focused):
+		movable_panel = InspectorPanel
+	elif (
+		BottomQuery != null
+		and (focused == BottomQuery or BottomQuery.is_ancestor_of(focused))
+	):
+		movable_panel = BottomPanel
+	if movable_panel == null:
 		return 0.0
 
 	var stretch_scale_y := (
@@ -815,9 +860,7 @@ func _calculate_keyboard_shift() -> float:
 		viewport_height - keyboard_height - KEYBOARD_MARGIN
 	)
 
-	var focused_bottom_without_shift := (
-		focused.get_global_rect().end.y - _keyboard_shift
-	)
+	var focused_bottom_without_shift := focused.get_global_rect().end.y - _keyboard_shift
 	return minf(
 		visible_bottom - focused_bottom_without_shift,
 		0.0

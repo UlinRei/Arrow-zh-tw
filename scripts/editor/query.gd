@@ -42,6 +42,7 @@ func _ready() -> void:
 func _notification(what:int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED && is_node_ready():
 		load_how_options.call_deferred()
+		reset_match_statistics_text.call_deferred()
 
 func register_connections() -> void:
 	QueryInput.text_submitted.connect(self.do_query)

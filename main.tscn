@@ -1123,6 +1123,7 @@ tooltip_text = "Update Node (Ctrl + Shift + Plus)"
 text = "Update"
 
 [node name="References" type="HBoxContainer" parent="FloatingTools/Control/Inspector/Sections/Tabs/Node/Properties" unique_id=1691934562]
+visible = false
 layout_mode = 2
 
 [node name="Previous" type="Button" parent="FloatingTools/Control/Inspector/Sections/Tabs/Node/Properties/References" unique_id=1400674933]
