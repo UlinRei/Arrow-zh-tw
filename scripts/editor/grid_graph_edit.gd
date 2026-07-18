@@ -201,9 +201,14 @@ func try_assisted_connection(outgoing:bool, first_side_slot:int, first_side_name
 func _on_connection_with_empty(node_name:String, slot:int, release_position:Vector2, outgoing:bool) -> void:
 	if try_assisted_connection(outgoing, slot, node_name) == false:
 		if _ALLOW_QUICK_NODE_INSERTION:
+			var menu_position := release_position
+			if OS.has_feature("android"):
+				menu_position = (
+					get_global_transform_with_canvas() * release_position
+				)
 			GridContextMenu.call_deferred(
 				"show_up",
-				release_position, offset_from_position(release_position),
+				menu_position, offset_from_position(release_position),
 				[node_name.to_int(), slot, outgoing]
 			)
 	pass

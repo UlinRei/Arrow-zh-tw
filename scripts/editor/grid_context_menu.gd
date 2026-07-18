@@ -33,8 +33,11 @@ var _QUICK_INSERT_TARGET = null
 const CLIPBOARD_MODE = Settings.CLIPBOARD_MODE
 
 var _NODE_INSERT_LIST_FULL = []
+var _ANDROID_OVERLAY: PanelContainer
+var _ANDROID_OVERLAY_CONTENT: VBoxContainer
 var _ANDROID_NODE_BUTTONS_SCROLL: ScrollContainer
 var _ANDROID_NODE_BUTTONS: VBoxContainer
+var _ANDROID_TOOL_ROW: HBoxContainer
 
 func _ready() -> void:
 	register_connections()
@@ -43,9 +46,21 @@ func _ready() -> void:
 	pass
 
 func _setup_android_node_buttons() -> void:
+	_ANDROID_OVERLAY = PanelContainer.new()
+	_ANDROID_OVERLAY.name = "AndroidContextOverlay"
+	_ANDROID_OVERLAY.z_index = 4096
+	_ANDROID_OVERLAY.custom_minimum_size = Vector2(320, 260)
+	_ANDROID_OVERLAY.hide()
+	get_parent().add_child(_ANDROID_OVERLAY)
+
+	_ANDROID_OVERLAY_CONTENT = VBoxContainer.new()
+	_ANDROID_OVERLAY_CONTENT.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_ANDROID_OVERLAY_CONTENT.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_ANDROID_OVERLAY_CONTENT.add_theme_constant_override("separation", 8)
+	_ANDROID_OVERLAY.add_child(_ANDROID_OVERLAY_CONTENT)
+
 	_ANDROID_NODE_BUTTONS_SCROLL = ScrollContainer.new()
 	_ANDROID_NODE_BUTTONS_SCROLL.name = "AndroidNodeButtonsScroll"
-	_ANDROID_NODE_BUTTONS_SCROLL.custom_minimum_size = Vector2(360, 240)
 	_ANDROID_NODE_BUTTONS_SCROLL.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_ANDROID_NODE_BUTTONS_SCROLL.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_ANDROID_NODE_BUTTONS = VBoxContainer.new()
@@ -53,10 +68,38 @@ func _setup_android_node_buttons() -> void:
 	_ANDROID_NODE_BUTTONS.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_ANDROID_NODE_BUTTONS.add_theme_constant_override("separation", 6)
 	_ANDROID_NODE_BUTTONS_SCROLL.add_child(_ANDROID_NODE_BUTTONS)
-	var types_box := NodeInsertList.get_parent()
-	types_box.add_child(_ANDROID_NODE_BUTTONS_SCROLL)
-	types_box.move_child(_ANDROID_NODE_BUTTONS_SCROLL, 0)
-	NodeInsertList.hide()
+	_ANDROID_OVERLAY_CONTENT.add_child(_ANDROID_NODE_BUTTONS_SCROLL)
+
+	_ANDROID_TOOL_ROW = HBoxContainer.new()
+	_ANDROID_TOOL_ROW.alignment = BoxContainer.ALIGNMENT_CENTER
+	_ANDROID_TOOL_ROW.add_theme_constant_override("separation", 6)
+	_ANDROID_OVERLAY_CONTENT.add_child(_ANDROID_TOOL_ROW)
+	_add_android_tool_button("Copy", CopyNodesButton.icon, "clipboard_push_selection", CLIPBOARD_MODE.COPY)
+	_add_android_tool_button("Cut", CutNodesButton.icon, "clipboard_push_selection", CLIPBOARD_MODE.CUT)
+	_add_android_tool_button("Paste", PasteClipboardButton.icon, "clipboard_pull", null)
+	_add_android_tool_button("Remove", RemoveNodesButton.icon, "remove_selected_nodes", null)
+
+
+func _add_android_tool_button(
+	label: String,
+	icon: Texture2D,
+	request: String,
+	args
+) -> void:
+	var button := Button.new()
+	button.text = tr(label)
+	button.icon = icon
+	button.expand_icon = true
+	button.custom_minimum_size = Vector2(78, 48)
+	button.add_theme_constant_override("icon_max_width", 28)
+	button.pressed.connect(_on_android_tool_pressed.bind(request, args))
+	_ANDROID_TOOL_ROW.add_child(button)
+
+
+func _on_android_tool_pressed(request: String, args) -> void:
+	if request == "clipboard_pull":
+		args = _CLICK_POINT_OFFSET
+	_request_mind(request, args, true)
 
 func register_connections() -> void:
 	self.about_to_popup.connect(self._on_about_to_popup)
@@ -84,11 +127,56 @@ func try_cache_node_type_list_from_mind(refresh_list:bool = true):
 func show_up(on_position:Vector2, offset:Vector2, quick_insertion = null) -> void:
 	_CLICK_POINT_POSITION = on_position
 	_CLICK_POINT_OFFSET = offset
-	disable_insert_button_if_nothing_is_there()
 	set_quick_insert_mode(quick_insertion)
+	if OS.has_feature("android"):
+		try_cache_node_type_list_from_mind(false)
+		_populate_android_node_buttons()
+		_update_android_tool_row()
+		_position_android_overlay(on_position)
+		_ANDROID_OVERLAY.show()
+		return
+	disable_insert_button_if_nothing_is_there()
 	self.set_position(on_position)
 	self.popup()
 	pass
+
+
+func _position_android_overlay(global_position: Vector2) -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	var desired_size := Vector2(
+		clampf(viewport_size.x * 0.42, 320.0, 480.0),
+		clampf(viewport_size.y * 0.68, 280.0, 520.0)
+	)
+	_ANDROID_OVERLAY.size = desired_size
+	var parent_control := _ANDROID_OVERLAY.get_parent() as Control
+	var local_position: Vector2 = (
+		parent_control.get_global_transform().affine_inverse()
+		* global_position
+		+ Vector2(12, 12)
+	)
+	local_position.x = clampf(
+		local_position.x,
+		0.0,
+		maxf(0.0, viewport_size.x - desired_size.x)
+	)
+	local_position.y = clampf(
+		local_position.y,
+		0.0,
+		maxf(0.0, viewport_size.y - desired_size.y)
+	)
+	_ANDROID_OVERLAY.position = local_position
+
+
+func _update_android_tool_row() -> void:
+	_ANDROID_TOOL_ROW.visible = not _QUICK_INSERT_MODE
+	var has_selection: bool = Grid._ALREADY_SELECTED_NODE_IDS.size() > 0
+	var clipboard_available: bool = Main.Mind.clipboard_available()
+	for index in _ANDROID_TOOL_ROW.get_child_count():
+		var button := _ANDROID_TOOL_ROW.get_child(index) as Button
+		if index == 2:
+			button.disabled = not clipboard_available
+		else:
+			button.disabled = not has_selection
 
 func _on_about_to_popup() -> void:
 	# On Android the main mind may finish initialization before this panel's
@@ -121,7 +209,7 @@ func _populate_android_node_buttons() -> void:
 	if _ANDROID_NODE_BUTTONS == null:
 		return
 	for child in _ANDROID_NODE_BUTTONS.get_children():
-		child.queue_free()
+		child.free()
 	var restricted_items := get_restricted_types()
 	for item_type in _NODE_INSERT_LIST_FULL:
 		if restricted_items.has(item_type):
@@ -137,6 +225,23 @@ func _populate_android_node_buttons() -> void:
 		button.add_theme_constant_override("icon_max_width", 40)
 		button.pressed.connect(_on_android_node_type_pressed.bind(item_details))
 		_ANDROID_NODE_BUTTONS.add_child(button)
+
+
+func _input(event: InputEvent) -> void:
+	if not OS.has_feature("android") or _ANDROID_OVERLAY == null:
+		return
+	if not _ANDROID_OVERLAY.visible:
+		return
+	var pressed := false
+	var event_position := Vector2.ZERO
+	if event is InputEventScreenTouch:
+		pressed = event.pressed
+		event_position = event.position
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		pressed = event.pressed
+		event_position = event.position
+	if pressed and not _ANDROID_OVERLAY.get_global_rect().has_point(event_position):
+		_ANDROID_OVERLAY.hide()
 
 func _on_android_node_type_pressed(item_details: Dictionary) -> void:
 	if _QUICK_INSERT_MODE:
@@ -294,5 +399,8 @@ func _request_mind(req:String, args, hide_menu:bool = false) -> void:
 	self.request_mind.emit(req, args)
 	# ... and close the grid context menu (popup)
 	if hide_menu:
-		self.hide()
+		if OS.has_feature("android") and _ANDROID_OVERLAY != null:
+			_ANDROID_OVERLAY.hide()
+		else:
+			self.hide()
 	pass

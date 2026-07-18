@@ -66,7 +66,11 @@ func refresh_scenes_list(list:Dictionary = {}) -> void:
 	_LISTED_SCENES_BY_NAME.clear()
 	if list.size() == 0 :
 		# fetch the scenes dataset if it's not provided as parameter
-		list = Main.Mind.clone_dataset_of("scenes", {}, { "macro": null })
+		var all_scenes: Dictionary = Main.Mind.clone_dataset_of("scenes")
+		for scene_id in all_scenes:
+			var scene = all_scenes[scene_id]
+			if not scene.get("macro", false):
+				list[scene_id] = scene
 	list_scenes(list)
 	ScenesList.deselect_all()
 	smartly_update_tools()

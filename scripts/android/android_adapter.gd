@@ -57,6 +57,7 @@ var _canvas_start_scroll := Vector2.ZERO
 
 var _node_hold_active := false
 var _node_hold_index := -1
+var _node_hold_node_id := -1
 var _node_hold_current := Vector2.ZERO
 var _node_hold_elapsed := 0.0
 var _node_long_press_triggered := false
@@ -420,7 +421,8 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 
 		var node_id := _find_node_at(event.position)
 		if node_id >= 0:
-			_begin_node_hold(event)
+			_begin_node_hold(event, node_id)
+			get_viewport().set_input_as_handled()
 			return
 
 		if _is_empty_canvas_point(event.position):
@@ -539,6 +541,7 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 
 	if _node_hold_active and event.index == _node_hold_index:
 		_node_hold_current = event.position
+		get_viewport().set_input_as_handled()
 
 
 func _handle_pan_gesture(event: InputEventPanGesture) -> void:
@@ -603,16 +606,19 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 			# A short tap on empty canvas clears the current selection.
 			_clear_selection()
 		CanvasMode.LONG_READY:
-			_show_context_menu.call_deferred(release_position)
+			# The menu was already shown as soon as the hold threshold elapsed.
+			pass
 
 	_canvas_mode = CanvasMode.NONE
 	_canvas_touch_index = -1
 	_canvas_elapsed = 0.0
 
 
-func _begin_node_hold(event: InputEventScreenTouch) -> void:
+func _begin_node_hold(event: InputEventScreenTouch, node_id: int) -> void:
+	_suppress_emulated_canvas_mouse = true
 	_node_hold_active = true
 	_node_hold_index = event.index
+	_node_hold_node_id = node_id
 	_node_hold_current = event.position
 	_node_hold_elapsed = 0.0
 	_node_long_press_triggered = false
@@ -621,15 +627,29 @@ func _begin_node_hold(event: InputEventScreenTouch) -> void:
 func _finish_node_hold(release_position: Vector2) -> void:
 	_node_hold_current = release_position
 	var was_long_press := _node_long_press_triggered
+	var held_node_id := _node_hold_node_id
 	_cancel_node_hold()
+	_select_android_node(held_node_id)
 	if was_long_press:
-		_show_context_menu.call_deferred(release_position)
+		# The menu was already shown while the finger was held.
 		get_viewport().set_input_as_handled()
+
+
+func _select_android_node(node_id: int) -> void:
+	if node_id < 0 or not Grid._DRAWN_NODES_BY_ID.has(node_id):
+		return
+	# GraphEdit can leave a GraphNode visually selected while its model-side
+	# selection list is empty. Rebuild both sides before forcing inspection so
+	# repeated taps on the same node are reliable.
+	Grid.select_node_by_id(node_id, true)
+	Main.Mind._SELECTED_NODES_IDS = [node_id]
+	Main.Mind.inspector_reaction_to_selection_change(true)
 
 
 func _cancel_node_hold() -> void:
 	_node_hold_active = false
 	_node_hold_index = -1
+	_node_hold_node_id = -1
 	_node_hold_elapsed = 0.0
 	_node_long_press_triggered = false
 
@@ -760,6 +780,7 @@ func _process(delta: float) -> void:
 		_canvas_elapsed += delta
 		if _canvas_elapsed >= LONG_PRESS_SECONDS:
 			_canvas_mode = CanvasMode.LONG_READY
+			_show_context_menu(_canvas_current)
 			# Vibration intentionally disabled while testing Android long press.
 
 	if _node_hold_active:
@@ -769,6 +790,8 @@ func _process(delta: float) -> void:
 			and _node_hold_elapsed >= LONG_PRESS_SECONDS
 		):
 			_node_long_press_triggered = true
+			_select_android_node(_node_hold_node_id)
+			_show_context_menu(_node_hold_current)
 			# Vibration intentionally disabled while testing Android long press.
 
 	_update_keyboard_avoidance(delta)
@@ -861,7 +884,11 @@ func _calculate_keyboard_shift() -> float:
 	)
 
 	var focused_bottom_without_shift := focused.get_global_rect().end.y - _keyboard_shift
-	return minf(
+	var requested_shift := minf(
 		visible_bottom - focused_bottom_without_shift,
 		0.0
 	)
+	if movable_panel == InspectorPanel:
+		var top_limit := KEYBOARD_MARGIN - _inspector_base_position.y
+		requested_shift = maxf(requested_shift, top_limit)
+	return requested_shift
