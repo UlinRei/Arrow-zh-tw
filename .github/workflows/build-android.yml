@@ -141,7 +141,7 @@ jobs:
       - name: Upload Android test APK
         uses: actions/upload-artifact@v7
         with:
-          name: Arrow-3.1.0-ZhTW-1-Android-arm64-debug
           path: build/android/${{ env.APK_NAME }}
+          archive: false
           if-no-files-found: error
           retention-days: 30

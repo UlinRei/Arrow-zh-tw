@@ -72,7 +72,14 @@ func show_up(on_position:Vector2, offset:Vector2, quick_insertion = null) -> voi
 	pass
 
 func _on_about_to_popup() -> void:
+	# On Android the main mind may finish initialization before this panel's
+	# one-shot signal connection runs. Refreshing here keeps insertion choices
+	# and their icons/previews available every time the menu opens.
+	try_cache_node_type_list_from_mind(true)
 	reset_quick_edit_buttons()
+	if OS.has_feature("android"):
+		NodeInsertList.custom_minimum_size = Vector2(300, 190)
+		call_deferred("_fit_android_popup_to_viewport")
 	NodeInsertList.grab_focus.call_deferred()
 	NodeInsertList.ensure_current_is_visible.call_deferred()
 	pass
@@ -86,6 +93,24 @@ func _on_window_input(event: InputEvent) -> void:
 			var click_pose = event.get_position()
 			if ! MenuBox.get_rect().has_point(click_pose):
 				Grid._on_popup_request()
+	pass
+
+
+func _fit_android_popup_to_viewport() -> void:
+	if not OS.has_feature("android"):
+		return
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	var fitted_size := Vector2i(
+		mini(maxi(size.x, 320), int(viewport_size.x * 0.62)),
+		mini(maxi(size.y, 300), int(viewport_size.y * 0.78))
+	)
+	size = fitted_size
+
+	position = Vector2i(
+		clampi(position.x, 0, maxi(0, int(viewport_size.x) - size.x)),
+		clampi(position.y, 0, maxi(0, int(viewport_size.y) - size.y))
+	)
 	pass
 
 func disable_insert_button_if_nothing_is_there(force_disabled:bool = false) -> void:
