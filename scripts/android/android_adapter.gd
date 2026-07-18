@@ -32,6 +32,7 @@ var _main_base_position := Vector2.ZERO
 var _keyboard_shift := 0.0
 
 var _touch_points: Dictionary = {}
+var _suppress_emulated_canvas_mouse := false
 
 var _canvas_mode := CanvasMode.NONE
 var _canvas_touch_index := -1
@@ -123,6 +124,10 @@ func _apply_android_ui_scale() -> void:
 	var android_theme := Main.theme.duplicate() as Theme
 	if android_theme == null:
 		return
+	var canvas_theme := Main.theme.duplicate() as Theme
+	if canvas_theme != null:
+		canvas_theme.default_base_scale = 1.0
+		Grid.theme = canvas_theme
 	android_theme.default_base_scale = android_scale
 	Main.theme = android_theme
 
@@ -161,6 +166,24 @@ func _input(event: InputEvent) -> void:
 		_handle_pan_gesture(event)
 	elif event is InputEventMagnifyGesture:
 		_handle_magnify_gesture(event)
+	elif event is InputEventMouseButton or event is InputEventMouseMotion:
+		_handle_emulated_canvas_mouse(event)
+
+
+func _handle_emulated_canvas_mouse(event: InputEvent) -> void:
+	if not _suppress_emulated_canvas_mouse:
+		return
+
+	var mouse_position := Vector2.ZERO
+	if event is InputEventMouseButton:
+		mouse_position = event.position
+	elif event is InputEventMouseMotion:
+		mouse_position = event.position
+	if Grid.get_global_rect().has_point(mouse_position):
+		get_viewport().set_input_as_handled()
+
+	if event is InputEventMouseButton and not event.pressed:
+		_suppress_emulated_canvas_mouse = false
 
 
 func _handle_screen_touch(event: InputEventScreenTouch) -> void:
@@ -281,6 +304,7 @@ func _cancel_active_canvas_gesture() -> void:
 
 
 func _begin_canvas_touch(event: InputEventScreenTouch) -> void:
+	_suppress_emulated_canvas_mouse = true
 	_canvas_mode = CanvasMode.PENDING
 	_canvas_touch_index = event.index
 	_canvas_origin = event.position
@@ -297,8 +321,7 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 			# A short tap on empty canvas clears the current selection.
 			_clear_selection()
 		CanvasMode.LONG_READY:
-			# The menu is opened as soon as the hold threshold is reached.
-			pass
+			_show_context_menu(release_position)
 		CanvasMode.BOX_SELECT:
 			_apply_box_selection()
 
@@ -387,6 +410,7 @@ func _begin_pinch() -> void:
 		return
 
 	_cancel_node_hold()
+	_suppress_emulated_canvas_mouse = true
 	_hide_selection_overlay()
 	_canvas_mode = CanvasMode.PINCH
 
@@ -507,7 +531,7 @@ func _process(delta: float) -> void:
 		_canvas_elapsed += delta
 		if _canvas_elapsed >= LONG_PRESS_SECONDS:
 			_canvas_mode = CanvasMode.LONG_READY
-			_show_context_menu(_canvas_current)
+			_show_long_press_indicator()
 
 	if _node_hold_active:
 		_node_hold_elapsed += delta
@@ -518,9 +542,21 @@ func _process(delta: float) -> void:
 				<= NODE_LONG_PRESS_MOVE_TOLERANCE
 		):
 			_node_long_press_triggered = true
+			Input.vibrate_handheld(35)
 			_show_context_menu(_node_hold_current)
 
 	_update_keyboard_avoidance(delta)
+
+
+func _show_long_press_indicator() -> void:
+	Input.vibrate_handheld(35)
+	if _selection_overlay == null:
+		return
+	_selection_overlay.global_position = (
+		_canvas_origin - Vector2.ONE * BOX_SELECT_START_DISTANCE * 0.5
+	)
+	_selection_overlay.size = Vector2.ONE * BOX_SELECT_START_DISTANCE
+	_selection_overlay.show()
 
 
 func _update_keyboard_avoidance(delta: float) -> void:

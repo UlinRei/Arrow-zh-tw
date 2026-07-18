@@ -30,8 +30,8 @@ var _MENU_ITEMS = [
 var _MENU_ITEMS_DATA = [
 	{ "text": "Preferences" },
 	null,
-	{ "text": "Fullscreen (F11)", "text_toggled": "Exit Fullscreen (F11)" },
-	{ "text": "Stay Above", "text_toggled": "Leave Above", "html5": false },
+	{ "text": "Fullscreen (F11)", "text_toggled": "Exit Fullscreen (F11)", "android": false },
+	{ "text": "Stay Above", "text_toggled": "Leave Above", "html5": false, "android": false },
 	{ "text": "Refresh", "html5": true },
 	null,
 	{ "text": "About" },
@@ -70,6 +70,7 @@ func _configure_android_button() -> void:
 func create_menu_items() -> void:
 	popup.clear()
 	var being_in_browser = Html5Helpers.Utils.is_browser()
+	var being_on_android := OS.has_feature("android")
 	var item_id = 0; # here, id is the same as order of the item
 	for item in _MENU_ITEMS:
 		if item != null:
@@ -78,6 +79,9 @@ func create_menu_items() -> void:
 			if (
 				the_item.has("html5") == false || # (is always available)
 				(the_item.html5 == being_in_browser) # (depending on the environment)
+			) && (
+				the_item.has("android") == false ||
+				the_item.android == being_on_android
 			):
 				popup.add_item(the_item.text, item_id)
 				_IDX[item] = popup.get_item_index(item_id)
@@ -88,10 +92,11 @@ func create_menu_items() -> void:
 
 func update_menu_items_view() -> void:
 	var is_fullscreen = (DisplayServer.window_get_mode() >= DisplayServer.WindowMode.WINDOW_MODE_FULLSCREEN)
-	popup.set_item_text(
-		_IDX.FULLSCREEN,
-		_MENU_ITEMS_DATA[_ID.FULLSCREEN].text_toggled if is_fullscreen else _MENU_ITEMS_DATA[_ID.FULLSCREEN].text
-	)
+	if _IDX.has("FULLSCREEN"):
+		popup.set_item_text(
+			_IDX.FULLSCREEN,
+			_MENU_ITEMS_DATA[_ID.FULLSCREEN].text_toggled if is_fullscreen else _MENU_ITEMS_DATA[_ID.FULLSCREEN].text
+		)
 	if _IDX.has("ALWAYS_ON_TOP"):
 		popup.set_item_text(
 			_IDX.ALWAYS_ON_TOP,
@@ -127,7 +132,11 @@ func _on_self_popup_item_id_pressed(id:int) -> void:
 	print_debug("app menu popup item pressed: ", id, " - ", _MENU_ITEMS[id])
 	match id:
 		_ID.PREFERENCES:
-			Main.UI.call_deferred("set_panel_visibility", "preferences", true)
+			if OS.has_feature("android"):
+				popup.hide()
+				Main.UI.set_panel_visibility("preferences", true)
+			else:
+				Main.UI.call_deferred("set_panel_visibility", "preferences", true)
 		_ID.FULLSCREEN:
 			Main.UI.call_deferred("toggle_fullscreen")
 		_ID.ALWAYS_ON_TOP:
