@@ -439,11 +439,18 @@ func _resize_android_node_after_update(
 ) -> void:
 	await get_tree().process_frame
 	if is_instance_valid(node_instance):
+		node_instance.custom_minimum_size = Vector2.ZERO
 		_force_android_content_preview(node_instance, data)
 		resize_to_best_fit(node_instance, data)
 	await get_tree().process_frame
 	if is_instance_valid(node_instance):
-		node_instance.size *= 1.20
+		var base_size := node_instance.size
+		var content_size := get_min_content_bounding_box(node_instance)
+		base_size.x = maxf(base_size.x, content_size.x)
+		base_size.y = maxf(base_size.y, content_size.y)
+		var android_preview_size := base_size * 1.20
+		node_instance.custom_minimum_size = android_preview_size
+		node_instance.size = android_preview_size
 
 
 func _force_android_content_preview(

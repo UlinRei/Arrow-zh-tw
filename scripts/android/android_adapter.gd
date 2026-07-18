@@ -34,6 +34,7 @@ var InspectorPanel: Control
 var AppMenuButton: MenuButton
 var QuickPreferencesButton: MenuButton
 var SaveButton: Button
+var InspectorToggleButton: Button
 
 var _setup_complete := false
 var _inspector_base_position := Vector2.ZERO
@@ -63,6 +64,7 @@ var _pinch_anchor_graph_position := Vector2.ZERO
 var _app_menu_touch_index := -1
 var _quick_preferences_touch_index := -1
 var _save_touch_index := -1
+var _inspector_toggle_touch_index := -1
 
 
 func _ready() -> void:
@@ -101,6 +103,9 @@ func _setup_android() -> void:
 	SaveButton = get_node_or_null(
 		"/root/Main/Editor/Top/Bar/Save"
 	) as Button
+	InspectorToggleButton = get_node_or_null(
+		"/root/Main/Editor/Bottom/Bar/Quick/Access/InspectorVisibility"
+	) as Button
 
 	DisplayServer.screen_set_orientation(
 		DisplayServer.SCREEN_SENSOR_LANDSCAPE
@@ -116,6 +121,27 @@ func _setup_android() -> void:
 	_apply_android_ui_scale()
 	_enlarge_graph_toolbar.call_deferred()
 	_enlarge_top_right_actions.call_deferred()
+	_restore_android_inspector_layout.call_deferred()
+	if InspectorToggleButton != null:
+		InspectorToggleButton.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func _restore_android_inspector_layout() -> void:
+	# Configuration restoration runs after a short timer. Wait until it has
+	# finished, then discard any previously saved off-screen Android geometry.
+	await get_tree().create_timer(0.45).timeout
+	if InspectorPanel == null:
+		return
+	InspectorPanel.anchor_left = 0.70
+	InspectorPanel.anchor_top = 0.115
+	InspectorPanel.anchor_right = 0.975
+	InspectorPanel.anchor_bottom = 0.855
+	InspectorPanel.offset_left = 0.0
+	InspectorPanel.offset_top = 0.0
+	InspectorPanel.offset_right = 0.0
+	InspectorPanel.offset_bottom = 0.0
+	_inspector_base_position = InspectorPanel.position
+	Main.UI.set_panel_visibility("inspector", true)
 
 
 func _configure_optional_android_controls() -> void:
@@ -211,13 +237,18 @@ func _refine_graph_toolbar_layout() -> void:
 	if toolbar == null:
 		return
 
-	toolbar.add_theme_constant_override("separation", 0)
+	toolbar.add_theme_constant_override("separation", -6)
+	var spacer := toolbar.get_node_or_null("AndroidZoomLabelSpacer") as Control
+	if spacer == null:
+		spacer = Control.new()
+		spacer.name = "AndroidZoomLabelSpacer"
+		spacer.custom_minimum_size.x = ANDROID_GRAPH_ZOOM_LABEL_SHIFT
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		toolbar.add_child(spacer)
+		toolbar.move_child(spacer, 0)
 	for child in toolbar.get_children():
 		if child is Label:
 			var zoom_label := child as Label
-			zoom_label.custom_minimum_size.x = (
-				zoom_label.size.x + ANDROID_GRAPH_ZOOM_LABEL_SHIFT
-			)
 			zoom_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		elif child is Button:
 			var toolbar_button := child as Button
@@ -233,15 +264,45 @@ func _refine_graph_toolbar_layout() -> void:
 			)
 			number_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			var number_input := number_box.get_line_edit()
+			number_input.expand_to_text_length = false
+			number_input.add_theme_constant_override(
+				"minimum_character_width",
+				1
+			)
 			number_input.custom_minimum_size.y = ANDROID_GRAPH_NUMBER_HEIGHT
 			_hide_android_spinbox_arrows(number_box)
+	toolbar.queue_sort()
 
 
 func _hide_android_spinbox_arrows(number_box: SpinBox) -> void:
 	var empty_image := Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
 	var empty_icon := ImageTexture.create_from_image(empty_image)
-	for icon_name in ["updown", "updown_disabled", "updown_hover", "updown_pressed"]:
+	for icon_name in [
+		"updown",
+		"up",
+		"up_disabled",
+		"up_hover",
+		"up_pressed",
+		"down",
+		"down_disabled",
+		"down_hover",
+		"down_pressed",
+	]:
 		number_box.add_theme_icon_override(icon_name, empty_icon)
+	var empty_style := StyleBoxEmpty.new()
+	for style_name in [
+		"up_background",
+		"up_background_disabled",
+		"up_background_hovered",
+		"up_background_pressed",
+		"down_background",
+		"down_background_disabled",
+		"down_background_hovered",
+		"down_background_pressed",
+		"field_and_buttons_separator",
+		"up_down_buttons_separator",
+	]:
+		number_box.add_theme_stylebox_override(style_name, empty_style)
 
 
 func _enlarge_top_right_actions() -> void:
@@ -392,6 +453,12 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
 	if event.pressed:
 		if (
+			InspectorToggleButton != null
+			and InspectorToggleButton.get_global_rect().has_point(event.position)
+		):
+			_inspector_toggle_touch_index = event.index
+			return true
+		if (
 			SaveButton != null
 			and SaveButton.get_global_rect().has_point(event.position)
 		):
@@ -426,6 +493,14 @@ func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
 		SaveButton.set_pressed_no_signal(false)
 		if SaveButton.get_global_rect().has_point(event.position):
 			SaveButton.pressed.emit()
+		return true
+	if event.index == _inspector_toggle_touch_index:
+		_inspector_toggle_touch_index = -1
+		if InspectorToggleButton.get_global_rect().has_point(event.position):
+			Main.UI.set_panel_visibility(
+				"inspector",
+				not InspectorPanel.is_visible_in_tree()
+			)
 		return true
 	return false
 
