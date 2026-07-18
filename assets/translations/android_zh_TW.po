@@ -1,0 +1,28 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Arrow Android Support\n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "ANDROID_TOOLS"
+msgstr "觸控工具"
+
+msgid "ANDROID_TOOLS_TOOLTIP"
+msgstr "Android 觸控專用操作"
+
+msgid "ANDROID_SELECT_BRANCH"
+msgstr "選取至此節點的分支"
+
+msgid "ANDROID_SELECT_WATERFALL"
+msgstr "選取來源節點的下游"
+
+msgid "ANDROID_COPY_SYSTEM_CLIPBOARD"
+msgstr "複製到系統剪貼簿"
+
+msgid "ANDROID_PASTE_SYSTEM_CLIPBOARD"
+msgstr "從系統剪貼簿貼上"
+
+msgid "ANDROID_CLEAR_SELECTION"
+msgstr "清除選取"

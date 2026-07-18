@@ -6,6 +6,8 @@
 # Acts as a general purpose file/dir path prompt. Check out `Settings::PATH_DIALOG_PROPERTIES`.
 extends FileDialog
 
+const IS_ANDROID := OS.get_name() == "Android"
+
 @onready var Main = get_tree().get_root().get_child(0)
 @onready var BlockingOverlay = $/root/Main/Overlays/Control/Blocker
 
@@ -16,6 +18,8 @@ var _CURRENT_CALLBACK_IDENT:String
 var _CURRENT_EXTRA_ARGUMENTS:Array
 
 func _ready() -> void:
+	if IS_ANDROID:
+		use_native_dialog = true
 	register_connections()
 	pass
 
@@ -37,6 +41,9 @@ func refresh_prompt_for(
 	for option in dialog_options:
 		if option in self:
 			self.set(option, dialog_options[option])
+	if IS_ANDROID:
+		use_native_dialog = true
+		filters = _android_native_filters(filters)
 	if display:
 		self.call_deferred("set_exclusive", true) # do not close by clicking outside the panel
 		self.call_deferred("popup") # `display` and refresh
@@ -44,6 +51,37 @@ func refresh_prompt_for(
 			_DIALOG_BLOCKED_VIEW_PER_SE = true
 			BlockingOverlay.set_visible(true)
 	pass
+
+func _android_native_filters(source_filters: PackedStringArray) -> PackedStringArray:
+	var adjusted := PackedStringArray()
+	for source_filter in source_filters:
+		var parts := source_filter.split(";")
+		var pattern := parts[0].strip_edges()
+		var description := parts[1].strip_edges() if parts.size() > 1 else pattern
+		var mime_types := _android_mime_types_for(pattern)
+		adjusted.append("%s;%s;%s" % [pattern, description, mime_types])
+	return adjusted
+
+
+func _android_mime_types_for(pattern: String) -> String:
+	var lowered := pattern.to_lower()
+	var mime_types: Array[String] = []
+	if "*.arrow" in lowered or "*.json" in lowered:
+		mime_types.append("application/json")
+	if "*.html" in lowered:
+		mime_types.append("text/html")
+	if "*.csv" in lowered:
+		mime_types.append("text/csv")
+	if "*.ttf" in lowered:
+		mime_types.append("font/ttf")
+	if "*.otf" in lowered:
+		mime_types.append("font/otf")
+	if "*.woff" in lowered:
+		mime_types.append("font/woff")
+	if "*.woff2" in lowered:
+		mime_types.append("font/woff2")
+	return ",".join(mime_types) if not mime_types.is_empty() else "application/octet-stream"
+
 
 func callback_with_path(path_string_or_pool_string_array) -> void:
 	_CURRENT_EXTRA_ARGUMENTS.push_front(path_string_or_pool_string_array)
