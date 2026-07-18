@@ -10,6 +10,7 @@ signal quick_preference()
 @onready var Main = get_tree().get_root().get_child(0)
 
 @onready var QuickPreferencesPopup = self.get_popup()
+var _android_selection_queued := false
 
 const QUICK_PREFERENCES_MENU = {
 	0: { "label": "Auto Inspection", "is_checkbox": true , "preference": "_AUTO_INSPECT", "command": "auto_inspect" },
@@ -22,12 +23,53 @@ const QUICK_PREFERENCES_MENU = {
 
 func _ready() -> void:
 	load_quick_preferences_menu()
-	QuickPreferencesPopup.id_pressed.connect(self._on_quick_preferences_popup_item_id_pressed, CONNECT_DEFERRED)
 	if OS.has_feature("android"):
 		# AndroidAdapter opens this popup on touch release. This avoids the
 		# press-and-hold behavior of MenuButton on Android.
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		QuickPreferencesPopup.index_pressed.connect(
+			self._on_android_popup_index_pressed
+		)
+		QuickPreferencesPopup.window_input.connect(
+			self._on_android_popup_window_input
+		)
+	else:
+		QuickPreferencesPopup.id_pressed.connect(
+			self._on_quick_preferences_popup_item_id_pressed,
+			CONNECT_DEFERRED
+		)
 	pass
+
+
+func _on_android_popup_index_pressed(index: int) -> void:
+	_activate_android_popup_index(index)
+
+
+func _on_android_popup_window_input(event: InputEvent) -> void:
+	var released := false
+	if event is InputEventScreenTouch:
+		released = not event.pressed
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		released = not event.pressed
+	if released:
+		_activate_android_popup_index.call_deferred(
+			QuickPreferencesPopup.get_focused_item()
+		)
+
+
+func _activate_android_popup_index(index: int) -> void:
+	if _android_selection_queued or index < 0:
+		return
+	_android_selection_queued = true
+	var item_id := QuickPreferencesPopup.get_item_id(index)
+	_on_quick_preferences_popup_item_id_pressed(item_id)
+	QuickPreferencesPopup.hide()
+	_reset_android_selection_guard.call_deferred()
+
+
+func _reset_android_selection_guard() -> void:
+	await get_tree().process_frame
+	_android_selection_queued = false
 
 func load_quick_preferences_menu() -> void:
 	QuickPreferencesPopup.clear()

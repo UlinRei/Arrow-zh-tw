@@ -26,11 +26,14 @@ var Main: Control
 var Grid: GraphEdit
 var ContextMenu: PopupPanel
 var MiniMapBox: Control
+var InspectorPanel: Control
 var AppMenuButton: MenuButton
 var QuickPreferencesButton: MenuButton
+var SaveButton: Button
 
 var _setup_complete := false
 var _main_base_position := Vector2.ZERO
+var _inspector_base_position := Vector2.ZERO
 var _keyboard_shift := 0.0
 
 var _touch_points: Dictionary = {}
@@ -55,8 +58,7 @@ var _pinch_start_zoom := 1.0
 var _pinch_anchor_graph_position := Vector2.ZERO
 var _app_menu_touch_index := -1
 var _quick_preferences_touch_index := -1
-
-var _selection_overlay: Panel
+var _save_touch_index := -1
 
 
 func _ready() -> void:
@@ -83,23 +85,30 @@ func _setup_android() -> void:
 	MiniMapBox = get_node_or_null(
 		"/root/Main/Editor/Center/MiniMap"
 	) as Control
+	InspectorPanel = get_node_or_null(
+		"/root/Main/FloatingTools/Control/Inspector"
+	) as Control
 	AppMenuButton = get_node_or_null(
 		"/root/Main/Editor/Top/Bar/AppMenu"
 	) as MenuButton
 	QuickPreferencesButton = get_node_or_null(
 		"/root/Main/Editor/Bottom/Bar/Quick/Access/SpecialPreferences"
 	) as MenuButton
+	SaveButton = get_node_or_null(
+		"/root/Main/Editor/Top/Bar/Save"
+	) as Button
 
 	DisplayServer.screen_set_orientation(
 		DisplayServer.SCREEN_SENSOR_LANDSCAPE
 	)
 
 	_main_base_position = Main.position
+	if InspectorPanel != null:
+		_inspector_base_position = InspectorPanel.position
 	_setup_complete = true
 	Grid.child_entered_tree.connect(_refresh_android_graph_node)
 	for child in Grid.get_children():
 		_refresh_android_graph_node(child)
-	_create_selection_overlay()
 	_configure_optional_android_controls()
 	_apply_android_ui_scale()
 	_enlarge_graph_toolbar.call_deferred()
@@ -153,6 +162,10 @@ func _resize_graph_toolbar_controls(parent: Node) -> void:
 			var control := child as Control
 			var toolbar_bottom := Grid.global_position.y + 72.0
 			if control.global_position.y <= toolbar_bottom:
+				control.add_theme_font_size_override(
+					"font_size",
+					ANDROID_GRAPH_TOOL_FONT_SIZE
+				)
 				control.custom_minimum_size.y = maxf(
 					control.custom_minimum_size.y,
 					ANDROID_GRAPH_TOOL_SIZE
@@ -164,6 +177,8 @@ func _resize_graph_toolbar_controls(parent: Node) -> void:
 					)
 				if control is Button:
 					var button := control as Button
+					if button.text in ["-", "+", "−"]:
+						button.custom_minimum_size.x = 52.0
 					button.expand_icon = true
 					button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 					button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -184,11 +199,7 @@ func _resize_graph_toolbar_controls(parent: Node) -> void:
 					label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 					label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 				if control is BoxContainer:
-					control.add_theme_constant_override("separation", 8)
-				control.add_theme_font_size_override(
-					"font_size",
-					ANDROID_GRAPH_TOOL_FONT_SIZE
-				)
+					control.add_theme_constant_override("separation", 2)
 		_resize_graph_toolbar_controls(child)
 
 
@@ -216,28 +227,10 @@ func _enlarge_top_right_actions() -> void:
 		save_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		save_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		save_button.add_theme_constant_override("icon_max_width", 44)
-
-
-func _create_selection_overlay() -> void:
-	var overlay_parent := get_node_or_null(
-		"/root/Main/Overlays/Control"
-	) as Control
-	if overlay_parent == null:
-		return
-
-	_selection_overlay = Panel.new()
-	_selection_overlay.name = "AndroidBoxSelection"
-	_selection_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_selection_overlay.z_index = 1000
-	_selection_overlay.hide()
-
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.25, 0.55, 1.0, 0.16)
-	style.border_color = Color(0.45, 0.72, 1.0, 0.9)
-	style.set_border_width_all(2)
-	_selection_overlay.add_theme_stylebox_override("panel", style)
-
-	overlay_parent.add_child(_selection_overlay)
+		save_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var indicator := save_button.get_node_or_null("Indicator") as Control
+		if indicator != null:
+			indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _input(event: InputEvent) -> void:
@@ -358,6 +351,13 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
 	if event.pressed:
 		if (
+			SaveButton != null
+			and SaveButton.get_global_rect().has_point(event.position)
+		):
+			_save_touch_index = event.index
+			SaveButton.set_pressed_no_signal(true)
+			return true
+		if (
 			AppMenuButton != null
 			and AppMenuButton.get_global_rect().has_point(event.position)
 		):
@@ -379,6 +379,12 @@ func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
 	if event.index == _quick_preferences_touch_index:
 		_quick_preferences_touch_index = -1
 		QuickPreferencesButton.show_popup.call_deferred()
+		return true
+	if event.index == _save_touch_index:
+		_save_touch_index = -1
+		SaveButton.set_pressed_no_signal(false)
+		if SaveButton.get_global_rect().has_point(event.position):
+			SaveButton.pressed.emit()
 		return true
 	return false
 
@@ -449,7 +455,6 @@ func _handle_magnify_gesture(event: InputEventMagnifyGesture) -> void:
 
 func _cancel_active_canvas_gesture() -> void:
 	_cancel_node_hold()
-	_hide_selection_overlay()
 	_canvas_mode = CanvasMode.NONE
 	_canvas_touch_index = -1
 	_canvas_elapsed = 0.0
@@ -481,17 +486,11 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 			# A short tap on empty canvas clears the current selection.
 			_clear_selection()
 		CanvasMode.LONG_READY:
-			_show_context_menu(release_position)
+			_show_context_menu.call_deferred(release_position)
 
-	_hide_selection_overlay()
 	_canvas_mode = CanvasMode.NONE
 	_canvas_touch_index = -1
 	_canvas_elapsed = 0.0
-
-
-func _hide_selection_overlay() -> void:
-	if _selection_overlay != null:
-		_selection_overlay.hide()
 
 
 func _begin_node_hold(event: InputEventScreenTouch) -> void:
@@ -507,7 +506,7 @@ func _finish_node_hold(release_position: Vector2) -> void:
 	var was_long_press := _node_long_press_triggered
 	_cancel_node_hold()
 	if was_long_press:
-		_show_context_menu(release_position)
+		_show_context_menu.call_deferred(release_position)
 		get_viewport().set_input_as_handled()
 
 
@@ -525,7 +524,6 @@ func _begin_pinch() -> void:
 
 	_cancel_node_hold()
 	_suppress_emulated_canvas_mouse = true
-	_hide_selection_overlay()
 	_canvas_mode = CanvasMode.PINCH
 
 	var first: Vector2 = points[0]
@@ -645,7 +643,7 @@ func _process(delta: float) -> void:
 		_canvas_elapsed += delta
 		if _canvas_elapsed >= LONG_PRESS_SECONDS:
 			_canvas_mode = CanvasMode.LONG_READY
-			Input.vibrate_handheld(35)
+			# Vibration intentionally disabled while testing Android long press.
 
 	if _node_hold_active:
 		_node_hold_elapsed += delta
@@ -654,7 +652,7 @@ func _process(delta: float) -> void:
 			and _node_hold_elapsed >= LONG_PRESS_SECONDS
 		):
 			_node_long_press_triggered = true
-			Input.vibrate_handheld(35)
+			# Vibration intentionally disabled while testing Android long press.
 
 	_update_keyboard_avoidance(delta)
 
@@ -667,7 +665,11 @@ func _update_keyboard_avoidance(delta: float) -> void:
 		KEYBOARD_MOVE_SPEED * delta
 	)
 
-	Main.position = _main_base_position + Vector2(
+	# Keep the application frame fixed; only raise the floating Inspector.
+	Main.position = _main_base_position
+	if InspectorPanel == null:
+		return
+	InspectorPanel.position = _inspector_base_position + Vector2(
 		0.0,
 		round(_keyboard_shift)
 	)
@@ -680,6 +682,8 @@ func _calculate_keyboard_shift() -> float:
 
 	var focused := get_viewport().gui_get_focus_owner() as Control
 	if focused == null or not focused.is_visible_in_tree():
+		return 0.0
+	if InspectorPanel == null or not InspectorPanel.is_ancestor_of(focused):
 		return 0.0
 
 	var stretch_scale_y := (
