@@ -50,6 +50,7 @@ func _ready() -> void:
 	self.create_menu_items()
 	self.update_menu_items_view()
 	if OS.has_feature("android"):
+		pressed.connect(self._open_android_preferences)
 		popup.index_pressed.connect(self._on_android_popup_index_pressed)
 		popup.window_input.connect(self._on_android_popup_window_input)
 	else:
@@ -69,7 +70,12 @@ func _configure_android_button() -> void:
 	icon = app_icon
 	expand_icon = true
 	custom_minimum_size = ANDROID_MENU_BUTTON_SIZE
-	tooltip_text = "Arrow"
+	tooltip_text = "Preferences"
+
+
+func _open_android_preferences() -> void:
+	popup.hide.call_deferred()
+	Main.UI.call_deferred("set_panel_visibility", "preferences", true)
 
 
 func _on_android_popup_index_pressed(index: int) -> void:

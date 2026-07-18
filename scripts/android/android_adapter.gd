@@ -14,6 +14,7 @@ const ANDROID_UI_SCALE_MIN := 1.0
 const ANDROID_UI_SCALE_MAX := 1.6
 const ANDROID_GRAPH_TOOL_SIZE := 64.0
 const ANDROID_GRAPH_TOOL_FONT_SIZE := 22
+const ANDROID_GRAPH_TOOL_ICON_SIZE := 40
 
 enum CanvasMode {
 	NONE,
@@ -154,6 +155,20 @@ func _resize_graph_toolbar_controls(parent: Node) -> void:
 						control.custom_minimum_size.x,
 						ANDROID_GRAPH_TOOL_SIZE
 					)
+				if control is Button:
+					var button := control as Button
+					button.expand_icon = true
+					button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+					button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+					button.add_theme_constant_override(
+						"icon_max_width",
+						ANDROID_GRAPH_TOOL_ICON_SIZE
+					)
+					button.add_theme_constant_override("h_separation", 8)
+				if control is LineEdit:
+					(control as LineEdit).alignment = HORIZONTAL_ALIGNMENT_CENTER
+				if control is BoxContainer:
+					control.add_theme_constant_override("separation", 8)
 				control.add_theme_font_size_override(
 					"font_size",
 					ANDROID_GRAPH_TOOL_FONT_SIZE
