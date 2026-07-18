@@ -441,6 +441,9 @@ func _resize_android_node_after_update(
 	if is_instance_valid(node_instance):
 		_force_android_content_preview(node_instance, data)
 		resize_to_best_fit(node_instance, data)
+	await get_tree().process_frame
+	if is_instance_valid(node_instance):
+		node_instance.size *= 1.20
 
 
 func _force_android_content_preview(

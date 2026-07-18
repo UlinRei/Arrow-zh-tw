@@ -10,9 +10,13 @@ const ANDROID_BASE_DPI := 160.0
 const ANDROID_UI_SCALE_MIN := 1.0
 const ANDROID_UI_SCALE_MAX := 1.6
 const ANDROID_GRAPH_TOOL_SIZE := 64.0
+const ANDROID_GRAPH_BUTTON_SIZE := ANDROID_GRAPH_TOOL_SIZE * 0.85
+const ANDROID_GRAPH_NUMBER_HEIGHT := ANDROID_GRAPH_TOOL_SIZE * 0.90
+const ANDROID_GRAPH_NUMBER_WIDTH_SCALE := 0.75
+const ANDROID_GRAPH_ZOOM_LABEL_SHIFT := 12.0
 const ANDROID_GRAPH_TOOL_FONT_SIZE := 22
 const ANDROID_GRAPH_NUMBER_FONT_SIZE := 30
-const ANDROID_GRAPH_TOOL_ICON_SIZE := 40
+const ANDROID_GRAPH_TOOL_ICON_SIZE := 34
 const ANDROID_TOP_ACTION_SCALE := 1.5
 
 enum CanvasMode {
@@ -32,9 +36,9 @@ var QuickPreferencesButton: MenuButton
 var SaveButton: Button
 
 var _setup_complete := false
-var _main_base_position := Vector2.ZERO
 var _inspector_base_position := Vector2.ZERO
 var _keyboard_shift := 0.0
+var _keyboard_avoidance_active := false
 
 var _touch_points: Dictionary = {}
 var _suppress_emulated_canvas_mouse := false
@@ -102,7 +106,6 @@ func _setup_android() -> void:
 		DisplayServer.SCREEN_SENSOR_LANDSCAPE
 	)
 
-	_main_base_position = Main.position
 	if InspectorPanel != null:
 		_inspector_base_position = InspectorPanel.position
 	_setup_complete = true
@@ -152,6 +155,8 @@ func _enlarge_graph_toolbar() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_resize_graph_toolbar_controls(Grid)
+	await get_tree().process_frame
+	_refine_graph_toolbar_layout()
 
 
 func _resize_graph_toolbar_controls(parent: Node) -> void:
@@ -171,14 +176,12 @@ func _resize_graph_toolbar_controls(parent: Node) -> void:
 					ANDROID_GRAPH_TOOL_SIZE
 				)
 				if control is BaseButton:
-					control.custom_minimum_size.x = maxf(
-						control.custom_minimum_size.x,
-						ANDROID_GRAPH_TOOL_SIZE
+					control.custom_minimum_size = Vector2.ONE * (
+						ANDROID_GRAPH_BUTTON_SIZE
 					)
+					control.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 				if control is Button:
 					var button := control as Button
-					if button.text in ["-", "+", "−"]:
-						button.custom_minimum_size.x = 52.0
 					button.expand_icon = true
 					button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 					button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -199,8 +202,46 @@ func _resize_graph_toolbar_controls(parent: Node) -> void:
 					label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 					label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 				if control is BoxContainer:
-					control.add_theme_constant_override("separation", 2)
+					control.add_theme_constant_override("separation", 0)
 		_resize_graph_toolbar_controls(child)
+
+
+func _refine_graph_toolbar_layout() -> void:
+	var toolbar := Grid.get_menu_hbox()
+	if toolbar == null:
+		return
+
+	toolbar.add_theme_constant_override("separation", 0)
+	for child in toolbar.get_children():
+		if child is Label:
+			var zoom_label := child as Label
+			zoom_label.custom_minimum_size.x = (
+				zoom_label.size.x + ANDROID_GRAPH_ZOOM_LABEL_SHIFT
+			)
+			zoom_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		elif child is Button:
+			var toolbar_button := child as Button
+			toolbar_button.custom_minimum_size = Vector2.ONE * (
+				ANDROID_GRAPH_BUTTON_SIZE
+			)
+			toolbar_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		elif child is SpinBox:
+			var number_box := child as SpinBox
+			number_box.custom_minimum_size = Vector2(
+				number_box.size.x * ANDROID_GRAPH_NUMBER_WIDTH_SCALE,
+				ANDROID_GRAPH_NUMBER_HEIGHT
+			)
+			number_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			var number_input := number_box.get_line_edit()
+			number_input.custom_minimum_size.y = ANDROID_GRAPH_NUMBER_HEIGHT
+			_hide_android_spinbox_arrows(number_box)
+
+
+func _hide_android_spinbox_arrows(number_box: SpinBox) -> void:
+	var empty_image := Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
+	var empty_icon := ImageTexture.create_from_image(empty_image)
+	for icon_name in ["updown", "updown_disabled", "updown_hover", "updown_pressed"]:
+		number_box.add_theme_icon_override(icon_name, empty_icon)
 
 
 func _enlarge_top_right_actions() -> void:
@@ -402,7 +443,6 @@ func _refresh_android_graph_node(node: Node) -> void:
 	var data_clone: Dictionary = node_resource.data.duplicate(true)
 	if node.has_method("_update_node"):
 		node.call("_update_node", data_clone)
-	Grid.resize_to_best_fit(node, data_clone)
 
 
 func _handle_screen_drag(event: InputEventScreenDrag) -> void:
@@ -658,6 +698,24 @@ func _process(delta: float) -> void:
 
 
 func _update_keyboard_avoidance(delta: float) -> void:
+	if InspectorPanel == null:
+		return
+
+	var keyboard_visible := DisplayServer.virtual_keyboard_get_height() > 0
+	var focused := get_viewport().gui_get_focus_owner() as Control
+	var inspector_has_focus := (
+		focused != null
+		and focused.is_visible_in_tree()
+		and InspectorPanel.is_ancestor_of(focused)
+	)
+
+	if keyboard_visible and inspector_has_focus and not _keyboard_avoidance_active:
+		_inspector_base_position = InspectorPanel.position
+		_keyboard_avoidance_active = true
+
+	if not _keyboard_avoidance_active:
+		return
+
 	var target_shift := _calculate_keyboard_shift()
 	_keyboard_shift = move_toward(
 		_keyboard_shift,
@@ -665,14 +723,13 @@ func _update_keyboard_avoidance(delta: float) -> void:
 		KEYBOARD_MOVE_SPEED * delta
 	)
 
-	# Keep the application frame fixed; only raise the floating Inspector.
-	Main.position = _main_base_position
-	if InspectorPanel == null:
-		return
 	InspectorPanel.position = _inspector_base_position + Vector2(
 		0.0,
 		round(_keyboard_shift)
 	)
+	if not keyboard_visible and is_zero_approx(_keyboard_shift):
+		InspectorPanel.position = _inspector_base_position
+		_keyboard_avoidance_active = false
 
 
 func _calculate_keyboard_shift() -> float:
