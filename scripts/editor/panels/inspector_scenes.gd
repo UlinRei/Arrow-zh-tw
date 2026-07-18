@@ -49,7 +49,14 @@ func register_connections() -> void:
 	Filter.text_changed.connect(self._on_listing_instruction_change, CONNECT_DEFERRED)
 	FilterReverse.toggled.connect(self._on_listing_instruction_change, CONNECT_DEFERRED)
 	SortAlphabetical.toggled.connect(self._on_listing_instruction_change, CONNECT_DEFERRED)
+	if OS.has_feature("android"):
+		visibility_changed.connect(self._on_visibility_changed)
 	pass
+
+
+func _on_visibility_changed() -> void:
+	if is_visible_in_tree():
+		refresh_tab.call_deferred()
 
 func initialize_tab() -> void:
 	refresh_tab()
@@ -66,7 +73,19 @@ func refresh_scenes_list(list:Dictionary = {}) -> void:
 	_LISTED_SCENES_BY_NAME.clear()
 	if list.size() == 0 :
 		# fetch the scenes dataset if it's not provided as parameter
-		var all_scenes: Dictionary = Main.Mind.clone_dataset_of("scenes")
+		var all_scenes: Dictionary = {}
+		var active_project = Main.Mind._PROJECT
+		if (
+			OS.has_feature("android")
+			and active_project is Dictionary
+			and active_project.has("resources")
+			and active_project.resources is Dictionary
+			and active_project.resources.has("scenes")
+			and active_project.resources.scenes is Dictionary
+		):
+			all_scenes = active_project.resources.scenes.duplicate(true)
+		else:
+			all_scenes = Main.Mind.clone_dataset_of("scenes")
 		for scene_id in all_scenes:
 			var scene = all_scenes[scene_id]
 			if not scene.get("macro", false):

@@ -4,6 +4,7 @@ extends Node
 # Desktop, Linux and Web builds are unaffected.
 
 const LONG_PRESS_SECONDS := 0.55
+const NODE_DRAG_CANCEL_DISTANCE := 18.0
 const KEYBOARD_MARGIN := 28.0
 const KEYBOARD_MOVE_SPEED := 1800.0
 const ANDROID_BASE_DPI := 160.0
@@ -32,8 +33,6 @@ var ContextMenu: PopupPanel
 var MiniMapBox: Control
 var InspectorPanel: Control
 var AppMenuButton: MenuButton
-var QuickPreferencesButton: MenuButton
-var SaveButton: Button
 var InspectorToggleButton: Button
 var BottomQuery: Control
 var BottomPanel: Control
@@ -50,14 +49,12 @@ var _mouse_canvas_fallback_active := false
 
 var _canvas_mode := CanvasMode.NONE
 var _canvas_touch_index := -1
-var _canvas_origin := Vector2.ZERO
 var _canvas_current := Vector2.ZERO
 var _canvas_elapsed := 0.0
-var _canvas_start_scroll := Vector2.ZERO
 
 var _node_hold_active := false
 var _node_hold_index := -1
-var _node_hold_node_id := -1
+var _node_hold_origin := Vector2.ZERO
 var _node_hold_current := Vector2.ZERO
 var _node_hold_elapsed := 0.0
 var _node_long_press_triggered := false
@@ -66,8 +63,6 @@ var _pinch_start_distance := 1.0
 var _pinch_start_zoom := 1.0
 var _pinch_anchor_graph_position := Vector2.ZERO
 var _app_menu_touch_index := -1
-var _quick_preferences_touch_index := -1
-var _save_touch_index := -1
 var _inspector_toggle_touch_index := -1
 
 
@@ -101,12 +96,6 @@ func _setup_android() -> void:
 	AppMenuButton = get_node_or_null(
 		"/root/Main/Editor/Top/Bar/AppMenu"
 	) as MenuButton
-	QuickPreferencesButton = get_node_or_null(
-		"/root/Main/Editor/Bottom/Bar/Quick/Access/SpecialPreferences"
-	) as MenuButton
-	SaveButton = get_node_or_null(
-		"/root/Main/Editor/Top/Bar/Save"
-	) as Button
 	InspectorToggleButton = get_node_or_null(
 		"/root/Main/Editor/Bottom/Bar/Quick/Access/InspectorVisibility"
 	) as Button
@@ -273,6 +262,18 @@ func _refine_graph_toolbar_layout() -> void:
 			)
 			number_input.custom_minimum_size.y = ANDROID_GRAPH_NUMBER_HEIGHT
 			_hide_android_spinbox_arrows(number_box)
+	# The first three toolbar buttons are GraphEdit's zoom out, reset-to-100%,
+	# and zoom in controls. Pinch zoom replaces the outer two on Android while
+	# keeping the center reset button available.
+	var zoom_buttons: Array[Button] = []
+	for child in toolbar.get_children():
+		if child is Label or child is SpinBox:
+			break
+		if child is Button:
+			zoom_buttons.append(child)
+	if zoom_buttons.size() >= 3:
+		zoom_buttons[0].hide()
+		zoom_buttons[2].hide()
 	toolbar.queue_sort()
 
 
@@ -331,7 +332,7 @@ func _enlarge_top_right_actions() -> void:
 		save_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		save_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		save_button.add_theme_constant_override("icon_max_width", 44)
-		save_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		save_button.mouse_filter = Control.MOUSE_FILTER_STOP
 		var indicator := save_button.get_node_or_null("Indicator") as Control
 		if indicator != null:
 			indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -389,6 +390,11 @@ func _handle_emulated_canvas_mouse(
 		if event.pressed:
 			if not _is_empty_canvas_point(mouse_position):
 				return false
+			if event.double_click:
+				_cancel_active_canvas_gesture()
+				_show_context_menu(mouse_position)
+				get_viewport().set_input_as_handled()
+				return true
 			_mouse_canvas_fallback_active = true
 			_begin_canvas_at(mouse_position, -2)
 		else:
@@ -421,11 +427,16 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 
 		var node_id := _find_node_at(event.position)
 		if node_id >= 0:
-			_begin_node_hold(event, node_id)
-			get_viewport().set_input_as_handled()
+			_begin_node_hold(event)
 			return
 
 		if _is_empty_canvas_point(event.position):
+			if event.double_tap:
+				_cancel_active_canvas_gesture()
+				_suppress_emulated_canvas_mouse = true
+				_show_context_menu(event.position)
+				get_viewport().set_input_as_handled()
+				return
 			_begin_canvas_touch(event)
 			get_viewport().set_input_as_handled()
 			return
@@ -462,13 +473,6 @@ func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
 			_inspector_toggle_touch_index = event.index
 			return true
 		if (
-			SaveButton != null
-			and SaveButton.get_global_rect().has_point(event.position)
-		):
-			_save_touch_index = event.index
-			SaveButton.set_pressed_no_signal(true)
-			return true
-		if (
 			AppMenuButton != null
 			and AppMenuButton.get_global_rect().has_point(event.position)
 		):
@@ -476,26 +480,10 @@ func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
 			AppMenuButton.get_popup().hide()
 			Main.UI.call_deferred("set_panel_visibility", "preferences", true)
 			return true
-		if (
-			QuickPreferencesButton != null
-			and QuickPreferencesButton.get_global_rect().has_point(event.position)
-		):
-			_quick_preferences_touch_index = event.index
-			return true
 		return false
 
 	if event.index == _app_menu_touch_index:
 		_app_menu_touch_index = -1
-		return true
-	if event.index == _quick_preferences_touch_index:
-		_quick_preferences_touch_index = -1
-		QuickPreferencesButton.show_popup.call_deferred()
-		return true
-	if event.index == _save_touch_index:
-		_save_touch_index = -1
-		SaveButton.set_pressed_no_signal(false)
-		if SaveButton.get_global_rect().has_point(event.position):
-			Main.Mind.call_deferred("save_project")
 		return true
 	if event.index == _inspector_toggle_touch_index:
 		_inspector_toggle_touch_index = -1
@@ -541,7 +529,8 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 
 	if _node_hold_active and event.index == _node_hold_index:
 		_node_hold_current = event.position
-		get_viewport().set_input_as_handled()
+		if _node_hold_origin.distance_to(_node_hold_current) > NODE_DRAG_CANCEL_DISTANCE:
+			_cancel_node_hold()
 
 
 func _handle_pan_gesture(event: InputEventPanGesture) -> void:
@@ -588,10 +577,8 @@ func _begin_canvas_touch(event: InputEventScreenTouch) -> void:
 func _begin_canvas_at(position: Vector2, input_index: int) -> void:
 	_canvas_mode = CanvasMode.PENDING
 	_canvas_touch_index = input_index
-	_canvas_origin = position
 	_canvas_current = position
 	_canvas_elapsed = 0.0
-	_canvas_start_scroll = Grid.get_scroll_offset()
 
 
 func _update_canvas_drag(position: Vector2) -> void:
@@ -614,11 +601,10 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 	_canvas_elapsed = 0.0
 
 
-func _begin_node_hold(event: InputEventScreenTouch, node_id: int) -> void:
-	_suppress_emulated_canvas_mouse = true
+func _begin_node_hold(event: InputEventScreenTouch) -> void:
 	_node_hold_active = true
 	_node_hold_index = event.index
-	_node_hold_node_id = node_id
+	_node_hold_origin = event.position
 	_node_hold_current = event.position
 	_node_hold_elapsed = 0.0
 	_node_long_press_triggered = false
@@ -627,29 +613,16 @@ func _begin_node_hold(event: InputEventScreenTouch, node_id: int) -> void:
 func _finish_node_hold(release_position: Vector2) -> void:
 	_node_hold_current = release_position
 	var was_long_press := _node_long_press_triggered
-	var held_node_id := _node_hold_node_id
 	_cancel_node_hold()
-	_select_android_node(held_node_id)
 	if was_long_press:
 		# The menu was already shown while the finger was held.
 		get_viewport().set_input_as_handled()
 
 
-func _select_android_node(node_id: int) -> void:
-	if node_id < 0 or not Grid._DRAWN_NODES_BY_ID.has(node_id):
-		return
-	# GraphEdit can leave a GraphNode visually selected while its model-side
-	# selection list is empty. Rebuild both sides before forcing inspection so
-	# repeated taps on the same node are reliable.
-	Grid.select_node_by_id(node_id, true)
-	Main.Mind._SELECTED_NODES_IDS = [node_id]
-	Main.Mind.inspector_reaction_to_selection_change(true)
-
-
 func _cancel_node_hold() -> void:
 	_node_hold_active = false
 	_node_hold_index = -1
-	_node_hold_node_id = -1
+	_node_hold_origin = Vector2.ZERO
 	_node_hold_elapsed = 0.0
 	_node_long_press_triggered = false
 
@@ -790,7 +763,6 @@ func _process(delta: float) -> void:
 			and _node_hold_elapsed >= LONG_PRESS_SECONDS
 		):
 			_node_long_press_triggered = true
-			_select_android_node(_node_hold_node_id)
 			_show_context_menu(_node_hold_current)
 			# Vibration intentionally disabled while testing Android long press.
 

@@ -27,6 +27,10 @@ func _ready() -> void:
 	# print startup messages
 	print(Embedded.Text.Welcome_Message)
 	print(Embedded.Text.Legal_Notes)
+	if OS.has_feature("android"):
+		# Android keeps every quick preference enabled by default. Desktop
+		# retains the upstream default for runtime template rebuilding.
+		_AUTO_REBUILD_RUNTIME_TEMPLATES = true
 	# get operational
 	handle_cli_arguments()
 	register_connections()

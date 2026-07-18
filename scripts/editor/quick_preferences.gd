@@ -10,7 +10,6 @@ signal quick_preference()
 @onready var Main = get_tree().get_root().get_child(0)
 
 @onready var QuickPreferencesPopup = self.get_popup()
-var _android_selection_queued := false
 
 const QUICK_PREFERENCES_MENU = {
 	0: { "label": "Auto Inspection", "is_checkbox": true , "preference": "_AUTO_INSPECT", "command": "auto_inspect" },
@@ -22,70 +21,17 @@ const QUICK_PREFERENCES_MENU = {
 }
 
 func _ready() -> void:
-	load_quick_preferences_menu()
 	if OS.has_feature("android"):
-		# AndroidAdapter opens this popup on touch release. This avoids the
-		# press-and-hold behavior of MenuButton on Android.
+		hide()
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		QuickPreferencesPopup.index_pressed.connect(
-			self._on_android_popup_index_pressed
-		)
-		QuickPreferencesPopup.window_input.connect(
-			self._on_android_popup_window_input
-		)
-	else:
-		QuickPreferencesPopup.id_pressed.connect(
-			self._on_quick_preferences_popup_item_id_pressed,
-			CONNECT_DEFERRED
-		)
-	pass
-
-
-func _on_android_popup_index_pressed(index: int) -> void:
-	_activate_android_popup_index(index)
-
-
-func _on_android_popup_window_input(event: InputEvent) -> void:
-	var released := false
-	var release_position := Vector2.ZERO
-	if event is InputEventScreenTouch:
-		released = not event.pressed
-		release_position = event.position
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		released = not event.pressed
-		release_position = event.position
-	if released:
-		var index := _android_item_at_position(release_position)
-		if index < 0:
-			index = QuickPreferencesPopup.get_focused_item()
-		_activate_android_popup_index.call_deferred(index)
-
-
-func _android_item_at_position(position: Vector2) -> int:
-	var item_top := 0.0
-	for index in QuickPreferencesPopup.item_count:
-		var item_bottom: float = (
-			item_top + float(QuickPreferencesPopup.get_item_height(index))
-		)
-		if position.y >= item_top and position.y < item_bottom:
-			return index
-		item_top = item_bottom
-	return -1
-
-
-func _activate_android_popup_index(index: int) -> void:
-	if _android_selection_queued or index < 0:
+		queue_free()
 		return
-	_android_selection_queued = true
-	var item_id := QuickPreferencesPopup.get_item_id(index)
-	_on_quick_preferences_popup_item_id_pressed(item_id)
-	QuickPreferencesPopup.hide()
-	_reset_android_selection_guard.call_deferred()
-
-
-func _reset_android_selection_guard() -> void:
-	await get_tree().process_frame
-	_android_selection_queued = false
+	load_quick_preferences_menu()
+	QuickPreferencesPopup.id_pressed.connect(
+		self._on_quick_preferences_popup_item_id_pressed,
+		CONNECT_DEFERRED
+	)
+	pass
 
 func load_quick_preferences_menu() -> void:
 	QuickPreferencesPopup.clear()
@@ -103,6 +49,8 @@ func load_quick_preferences_menu() -> void:
 	pass
 
 func refresh_quick_preferences_menu_view() -> void:
+	if OS.has_feature("android"):
+		return
 	for item_id in QUICK_PREFERENCES_MENU:
 		if QUICK_PREFERENCES_MENU[item_id] != null:
 			QuickPreferencesPopup.set_item_checked( item_id, Main[ QUICK_PREFERENCES_MENU[item_id].preference ] )

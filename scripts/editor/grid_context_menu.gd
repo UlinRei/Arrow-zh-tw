@@ -34,8 +34,6 @@ const CLIPBOARD_MODE = Settings.CLIPBOARD_MODE
 
 var _NODE_INSERT_LIST_FULL = []
 var _ANDROID_OVERLAY: PanelContainer
-var _ANDROID_OVERLAY_CONTENT: VBoxContainer
-var _ANDROID_NODE_BUTTONS_SCROLL: ScrollContainer
 var _ANDROID_NODE_BUTTONS: VBoxContainer
 var _ANDROID_TOOL_ROW: HBoxContainer
 
@@ -46,34 +44,27 @@ func _ready() -> void:
 	pass
 
 func _setup_android_node_buttons() -> void:
-	_ANDROID_OVERLAY = PanelContainer.new()
-	_ANDROID_OVERLAY.name = "AndroidContextOverlay"
-	_ANDROID_OVERLAY.z_index = 4096
-	_ANDROID_OVERLAY.custom_minimum_size = Vector2(320, 260)
-	_ANDROID_OVERLAY.hide()
-	get_parent().add_child(_ANDROID_OVERLAY)
-
-	_ANDROID_OVERLAY_CONTENT = VBoxContainer.new()
-	_ANDROID_OVERLAY_CONTENT.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_ANDROID_OVERLAY_CONTENT.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_ANDROID_OVERLAY_CONTENT.add_theme_constant_override("separation", 8)
-	_ANDROID_OVERLAY.add_child(_ANDROID_OVERLAY_CONTENT)
-
-	_ANDROID_NODE_BUTTONS_SCROLL = ScrollContainer.new()
-	_ANDROID_NODE_BUTTONS_SCROLL.name = "AndroidNodeButtonsScroll"
-	_ANDROID_NODE_BUTTONS_SCROLL.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_ANDROID_NODE_BUTTONS_SCROLL.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_ANDROID_NODE_BUTTONS = VBoxContainer.new()
-	_ANDROID_NODE_BUTTONS.name = "AndroidNodeButtons"
-	_ANDROID_NODE_BUTTONS.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_ANDROID_NODE_BUTTONS.add_theme_constant_override("separation", 6)
-	_ANDROID_NODE_BUTTONS_SCROLL.add_child(_ANDROID_NODE_BUTTONS)
-	_ANDROID_OVERLAY_CONTENT.add_child(_ANDROID_NODE_BUTTONS_SCROLL)
-
-	_ANDROID_TOOL_ROW = HBoxContainer.new()
-	_ANDROID_TOOL_ROW.alignment = BoxContainer.ALIGNMENT_CENTER
-	_ANDROID_TOOL_ROW.add_theme_constant_override("separation", 6)
-	_ANDROID_OVERLAY_CONTENT.add_child(_ANDROID_TOOL_ROW)
+	_ANDROID_OVERLAY = get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext"
+	) as PanelContainer
+	_ANDROID_NODE_BUTTONS = get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext/Margin/Content/NodeScroll/NodeButtons"
+	) as VBoxContainer
+	_ANDROID_TOOL_ROW = get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext/Margin/Content/Tools"
+	) as HBoxContainer
+	var close_button := get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext/Margin/Content/Header/Close"
+	) as Button
+	if (
+		_ANDROID_OVERLAY == null
+		or _ANDROID_NODE_BUTTONS == null
+		or _ANDROID_TOOL_ROW == null
+	):
+		push_error("Android context menu scene controls are missing.")
+		return
+	if close_button != null:
+		close_button.pressed.connect(_ANDROID_OVERLAY.hide)
 	_add_android_tool_button("Copy", CopyNodesButton.icon, "clipboard_push_selection", CLIPBOARD_MODE.COPY)
 	_add_android_tool_button("Cut", CutNodesButton.icon, "clipboard_push_selection", CLIPBOARD_MODE.CUT)
 	_add_android_tool_button("Paste", PasteClipboardButton.icon, "clipboard_pull", null)
@@ -129,6 +120,8 @@ func show_up(on_position:Vector2, offset:Vector2, quick_insertion = null) -> voi
 	_CLICK_POINT_OFFSET = offset
 	set_quick_insert_mode(quick_insertion)
 	if OS.has_feature("android"):
+		if _ANDROID_OVERLAY == null:
+			return
 		try_cache_node_type_list_from_mind(false)
 		_populate_android_node_buttons()
 		_update_android_tool_row()
@@ -142,6 +135,8 @@ func show_up(on_position:Vector2, offset:Vector2, quick_insertion = null) -> voi
 
 
 func _position_android_overlay(global_position: Vector2) -> void:
+	if _ANDROID_OVERLAY == null:
+		return
 	var viewport_size := get_viewport().get_visible_rect().size
 	var desired_size := Vector2(
 		clampf(viewport_size.x * 0.42, 320.0, 480.0),
@@ -168,6 +163,8 @@ func _position_android_overlay(global_position: Vector2) -> void:
 
 
 func _update_android_tool_row() -> void:
+	if _ANDROID_TOOL_ROW == null:
+		return
 	_ANDROID_TOOL_ROW.visible = not _QUICK_INSERT_MODE
 	var has_selection: bool = Grid._ALREADY_SELECTED_NODE_IDS.size() > 0
 	var clipboard_available: bool = Main.Mind.clipboard_available()

@@ -61,7 +61,8 @@ class UiManager :
 	func register_connections():
 		TheViewport.size_changed.connect(self._on_screen_resized)
 		MAIN_UI.inspector_view_toggle.toggled.connect(self._on_inspector_view_toggle, CONNECT_DEFERRED)
-		MAIN_UI.quick_preferences.quick_preference.connect(self._on_quick_preference, CONNECT_DEFERRED)
+		if not OS.has_feature("android") and is_instance_valid(MAIN_UI.quick_preferences):
+			MAIN_UI.quick_preferences.quick_preference.connect(self._on_quick_preference, CONNECT_DEFERRED)
 		PANELS.preferences.preference_modifications_done.connect(Main.Configs._on_preference_modifications_done, CONNECT_DEFERRED)
 		PANELS.preferences.preference_modified.connect(Main.Configs._on_preference_modified, CONNECT_DEFERRED)
 		pass
@@ -83,7 +84,10 @@ class UiManager :
 		pass
 	
 	func update_quick_preferences_switches_view() -> void:
-		MAIN_UI.quick_preferences.call_deferred("refresh_quick_preferences_menu_view")
+		if OS.has_feature("android"):
+			return
+		if is_instance_valid(MAIN_UI.quick_preferences):
+			MAIN_UI.quick_preferences.call_deferred("refresh_quick_preferences_menu_view")
 		pass
 	
 	func set_panel_visibility(panel:String, visibility:bool) -> void:
