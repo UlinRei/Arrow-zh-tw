@@ -33,7 +33,8 @@ var _QUICK_INSERT_TARGET = null
 const CLIPBOARD_MODE = Settings.CLIPBOARD_MODE
 
 var _NODE_INSERT_LIST_FULL = []
-var _ANDROID_OVERLAY: PanelContainer
+var _ANDROID_OVERLAY: Control
+var _ANDROID_PANEL: PanelContainer
 var _ANDROID_NODE_BUTTONS: VBoxContainer
 var _ANDROID_TOOL_ROW: HBoxContainer
 
@@ -46,18 +47,25 @@ func _ready() -> void:
 func _setup_android_node_buttons() -> void:
 	_ANDROID_OVERLAY = get_node_or_null(
 		"/root/Main/Overlays/Control/AndroidContext"
+	) as Control
+	_ANDROID_PANEL = get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext/Menu"
 	) as PanelContainer
 	_ANDROID_NODE_BUTTONS = get_node_or_null(
-		"/root/Main/Overlays/Control/AndroidContext/Margin/Content/NodeScroll/NodeButtons"
+		"/root/Main/Overlays/Control/AndroidContext/Menu/Margin/Content/NodeScroll/NodeButtons"
 	) as VBoxContainer
 	_ANDROID_TOOL_ROW = get_node_or_null(
-		"/root/Main/Overlays/Control/AndroidContext/Margin/Content/Tools"
+		"/root/Main/Overlays/Control/AndroidContext/Menu/Margin/Content/Tools"
 	) as HBoxContainer
 	var close_button := get_node_or_null(
-		"/root/Main/Overlays/Control/AndroidContext/Margin/Content/Header/Close"
+		"/root/Main/Overlays/Control/AndroidContext/Menu/Margin/Content/Header/Close"
 	) as Button
+	var shield := get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext/Shield"
+	) as Control
 	if (
 		_ANDROID_OVERLAY == null
+		or _ANDROID_PANEL == null
 		or _ANDROID_NODE_BUTTONS == null
 		or _ANDROID_TOOL_ROW == null
 	):
@@ -65,6 +73,8 @@ func _setup_android_node_buttons() -> void:
 		return
 	if close_button != null:
 		close_button.pressed.connect(_ANDROID_OVERLAY.hide)
+	if shield != null:
+		shield.gui_input.connect(_on_android_shield_gui_input)
 	_add_android_tool_button("Copy", CopyNodesButton.icon, "clipboard_push_selection", CLIPBOARD_MODE.COPY)
 	_add_android_tool_button("Cut", CutNodesButton.icon, "clipboard_push_selection", CLIPBOARD_MODE.CUT)
 	_add_android_tool_button("Paste", PasteClipboardButton.icon, "clipboard_pull", null)
@@ -120,13 +130,12 @@ func show_up(on_position:Vector2, offset:Vector2, quick_insertion = null) -> voi
 	_CLICK_POINT_OFFSET = offset
 	set_quick_insert_mode(quick_insertion)
 	if OS.has_feature("android"):
-		if _ANDROID_OVERLAY == null:
+		if _ANDROID_OVERLAY == null or _ANDROID_PANEL == null:
 			return
-		try_cache_node_type_list_from_mind(false)
-		_populate_android_node_buttons()
 		_update_android_tool_row()
-		_position_android_overlay(on_position)
 		_ANDROID_OVERLAY.show()
+		_position_android_overlay()
+		_refresh_android_overlay.call_deferred()
 		return
 	disable_insert_button_if_nothing_is_there()
 	self.set_position(on_position)
@@ -134,32 +143,30 @@ func show_up(on_position:Vector2, offset:Vector2, quick_insertion = null) -> voi
 	pass
 
 
-func _position_android_overlay(global_position: Vector2) -> void:
-	if _ANDROID_OVERLAY == null:
+func _position_android_overlay() -> void:
+	if _ANDROID_OVERLAY == null or _ANDROID_PANEL == null:
 		return
 	var viewport_size := get_viewport().get_visible_rect().size
+	_ANDROID_OVERLAY.position = Vector2.ZERO
+	_ANDROID_OVERLAY.size = viewport_size
 	var desired_size := Vector2(
-		clampf(viewport_size.x * 0.42, 320.0, 480.0),
-		clampf(viewport_size.y * 0.68, 280.0, 520.0)
+		clampf(viewport_size.x * 0.58, 360.0, 560.0),
+		clampf(viewport_size.y * 0.78, 280.0, 520.0)
 	)
-	_ANDROID_OVERLAY.size = desired_size
-	var parent_control := _ANDROID_OVERLAY.get_parent() as Control
-	var local_position: Vector2 = (
-		parent_control.get_global_transform().affine_inverse()
-		* global_position
-		+ Vector2(12, 12)
-	)
-	local_position.x = clampf(
-		local_position.x,
-		0.0,
-		maxf(0.0, viewport_size.x - desired_size.x)
-	)
-	local_position.y = clampf(
-		local_position.y,
-		0.0,
-		maxf(0.0, viewport_size.y - desired_size.y)
-	)
-	_ANDROID_OVERLAY.position = local_position
+	_ANDROID_PANEL.custom_minimum_size = desired_size
+	_ANDROID_PANEL.size = desired_size
+	_ANDROID_PANEL.position = (viewport_size - desired_size) * 0.5
+
+
+func _refresh_android_overlay() -> void:
+	for attempt in range(30):
+		try_cache_node_type_list_from_mind(false)
+		if _NODE_INSERT_LIST_FULL.size() > 0:
+			_populate_android_node_buttons()
+			await get_tree().process_frame
+			_position_android_overlay()
+			return
+		await get_tree().process_frame
 
 
 func _update_android_tool_row() -> void:
@@ -218,26 +225,22 @@ func _populate_android_node_buttons() -> void:
 		button.expand_icon = true
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size = Vector2(0, 54)
+		button.custom_minimum_size = Vector2(280, 54)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.add_theme_constant_override("icon_max_width", 40)
 		button.pressed.connect(_on_android_node_type_pressed.bind(item_details))
 		_ANDROID_NODE_BUTTONS.add_child(button)
 
 
-func _input(event: InputEvent) -> void:
-	if not OS.has_feature("android") or _ANDROID_OVERLAY == null:
-		return
-	if not _ANDROID_OVERLAY.visible:
-		return
-	var pressed := false
-	var event_position := Vector2.ZERO
-	if event is InputEventScreenTouch:
-		pressed = event.pressed
-		event_position = event.position
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		pressed = event.pressed
-		event_position = event.position
-	if pressed and not _ANDROID_OVERLAY.get_global_rect().has_point(event_position):
+func _on_android_shield_gui_input(event: InputEvent) -> void:
+	if (
+		(event is InputEventScreenTouch and event.pressed)
+		or (
+			event is InputEventMouseButton
+			and event.button_index == MOUSE_BUTTON_LEFT
+			and event.pressed
+		)
+	):
 		_ANDROID_OVERLAY.hide()
 
 func _on_android_node_type_pressed(item_details: Dictionary) -> void:

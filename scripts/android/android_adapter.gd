@@ -5,7 +5,7 @@ extends Node
 
 const LONG_PRESS_SECONDS := 0.55
 const NODE_DRAG_CANCEL_DISTANCE := 18.0
-const KEYBOARD_MARGIN := 28.0
+const KEYBOARD_MARGIN := 56.0
 const KEYBOARD_MOVE_SPEED := 1800.0
 const ANDROID_BASE_DPI := 160.0
 const ANDROID_UI_SCALE_MIN := 1.0
@@ -30,9 +30,12 @@ enum CanvasMode {
 var Main: Control
 var Grid: GraphEdit
 var ContextMenu: PopupPanel
+var AndroidContextOverlay: Control
 var MiniMapBox: Control
 var InspectorPanel: Control
 var AppMenuButton: MenuButton
+var SaveButton: Button
+var EditorPanel: Control
 var InspectorToggleButton: Button
 var BottomQuery: Control
 var BottomPanel: Control
@@ -54,6 +57,7 @@ var _canvas_elapsed := 0.0
 
 var _node_hold_active := false
 var _node_hold_index := -1
+var _node_hold_node_id := -1
 var _node_hold_origin := Vector2.ZERO
 var _node_hold_current := Vector2.ZERO
 var _node_hold_elapsed := 0.0
@@ -87,6 +91,9 @@ func _setup_android() -> void:
 	ContextMenu = get_node_or_null(
 		"/root/Main/FloatingTools/Control/Context"
 	) as PopupPanel
+	AndroidContextOverlay = get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext"
+	) as Control
 	MiniMapBox = get_node_or_null(
 		"/root/Main/Editor/Center/MiniMap"
 	) as Control
@@ -96,6 +103,10 @@ func _setup_android() -> void:
 	AppMenuButton = get_node_or_null(
 		"/root/Main/Editor/Top/Bar/AppMenu"
 	) as MenuButton
+	SaveButton = get_node_or_null(
+		"/root/Main/Editor/Top/Bar/Save"
+	) as Button
+	EditorPanel = get_node_or_null("/root/Main/Editor") as Control
 	InspectorToggleButton = get_node_or_null(
 		"/root/Main/Editor/Bottom/Bar/Quick/Access/InspectorVisibility"
 	) as Button
@@ -115,9 +126,6 @@ func _setup_android() -> void:
 	if BottomPanel != null:
 		_bottom_panel_base_position = BottomPanel.position
 	_setup_complete = true
-	Grid.child_entered_tree.connect(_refresh_android_graph_node)
-	for child in Grid.get_children():
-		_refresh_android_graph_node(child)
 	_configure_optional_android_controls()
 	_apply_android_ui_scale()
 	_enlarge_graph_toolbar.call_deferred()
@@ -266,10 +274,14 @@ func _refine_graph_toolbar_layout() -> void:
 	# and zoom in controls. Pinch zoom replaces the outer two on Android while
 	# keeping the center reset button available.
 	var zoom_buttons: Array[Button] = []
+	var found_zoom_label := false
 	for child in toolbar.get_children():
-		if child is Label or child is SpinBox:
+		if child is Label:
+			found_zoom_label = true
+			continue
+		if child is SpinBox:
 			break
-		if child is Button:
+		if found_zoom_label and child is Button:
 			zoom_buttons.append(child)
 	if zoom_buttons.size() >= 3:
 		zoom_buttons[0].hide()
@@ -413,6 +425,15 @@ func _handle_emulated_canvas_mouse(
 
 
 func _handle_screen_touch(event: InputEventScreenTouch) -> void:
+	if (
+		AndroidContextOverlay != null
+		and AndroidContextOverlay.is_visible_in_tree()
+	):
+		if not event.pressed:
+			_touch_points.erase(event.index)
+			_suppress_emulated_canvas_mouse = false
+			_cancel_active_canvas_gesture()
+		return
 	if _handle_android_menu_touch(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -427,7 +448,7 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 
 		var node_id := _find_node_at(event.position)
 		if node_id >= 0:
-			_begin_node_hold(event)
+			_begin_node_hold(event, node_id)
 			return
 
 		if _is_empty_canvas_point(event.position):
@@ -467,6 +488,13 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
 	if event.pressed:
 		if (
+			SaveButton != null
+			and EditorPanel != null
+			and SaveButton.get_global_rect().grow(18.0).has_point(event.position)
+		):
+			EditorPanel.call("_request_android_save")
+			return true
+		if (
 			InspectorToggleButton != null
 			and InspectorToggleButton.get_global_rect().has_point(event.position)
 		):
@@ -496,22 +524,12 @@ func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
 	return false
 
 
-func _refresh_android_graph_node(node: Node) -> void:
-	if not node is GraphNode:
-		return
-	await get_tree().process_frame
-	if not is_instance_valid(node):
-		return
-
-	var node_resource = node.get("_node_resource")
-	if not node_resource is Dictionary or not node_resource.has("data"):
-		return
-	var data_clone: Dictionary = node_resource.data.duplicate(true)
-	if node.has_method("_update_node"):
-		node.call("_update_node", data_clone)
-
-
 func _handle_screen_drag(event: InputEventScreenDrag) -> void:
+	if (
+		AndroidContextOverlay != null
+		and AndroidContextOverlay.is_visible_in_tree()
+	):
+		return
 	_touch_points[event.index] = event.position
 
 	if _canvas_mode == CanvasMode.PINCH:
@@ -601,9 +619,10 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 	_canvas_elapsed = 0.0
 
 
-func _begin_node_hold(event: InputEventScreenTouch) -> void:
+func _begin_node_hold(event: InputEventScreenTouch, node_id: int) -> void:
 	_node_hold_active = true
 	_node_hold_index = event.index
+	_node_hold_node_id = node_id
 	_node_hold_origin = event.position
 	_node_hold_current = event.position
 	_node_hold_elapsed = 0.0
@@ -613,15 +632,29 @@ func _begin_node_hold(event: InputEventScreenTouch) -> void:
 func _finish_node_hold(release_position: Vector2) -> void:
 	_node_hold_current = release_position
 	var was_long_press := _node_long_press_triggered
+	var held_node_id := _node_hold_node_id
 	_cancel_node_hold()
 	if was_long_press:
 		# The menu was already shown while the finger was held.
 		get_viewport().set_input_as_handled()
+	else:
+		_inspect_android_node.call_deferred(held_node_id)
+
+
+func _inspect_android_node(node_id: int) -> void:
+	if (
+		node_id >= 0
+		and Main != null
+		and Main.get("Mind") != null
+		and Grid._DRAWN_NODES_BY_ID.has(node_id)
+	):
+		Main.Mind.inspect_node(node_id, -1, true)
 
 
 func _cancel_node_hold() -> void:
 	_node_hold_active = false
 	_node_hold_index = -1
+	_node_hold_node_id = -1
 	_node_hold_origin = Vector2.ZERO
 	_node_hold_elapsed = 0.0
 	_node_long_press_triggered = false
@@ -860,7 +893,4 @@ func _calculate_keyboard_shift() -> float:
 		visible_bottom - focused_bottom_without_shift,
 		0.0
 	)
-	if movable_panel == InspectorPanel:
-		var top_limit := KEYBOARD_MARGIN - _inspector_base_position.y
-		requested_shift = maxf(requested_shift, top_limit)
 	return requested_shift

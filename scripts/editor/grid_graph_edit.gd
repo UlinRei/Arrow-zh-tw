@@ -11,6 +11,7 @@ signal request_mind()
 @onready var Main = TheTree.get_root().get_child(0)
 @onready var TheViewport = get_viewport()
 @onready var GridContextMenu = $/root/Main/FloatingTools/Control/Context
+@onready var AndroidAdapterNode = $/root/Main/AndroidAdapter
 
 @onready var Minimap = $/root/Main/Editor/Center/MiniMap/Area
 @onready var MinimapBox = Minimap.get_parent()
@@ -449,10 +450,17 @@ func _resize_android_node_after_update(
 		resize_to_best_fit(node_instance, data)
 	await get_tree().process_frame
 	if is_instance_valid(node_instance):
-		var base_size := node_instance.size
 		var content_size := get_min_content_bounding_box(node_instance)
+		var base_size := Vector2.ZERO
+		if data.has("rect") and data.rect is Array and data.rect.size() >= 2:
+			base_size = Helpers.Utils.array_to_vector2(data.rect)
+		elif node_instance.has_meta("android_preview_base_size"):
+			base_size = node_instance.get_meta("android_preview_base_size")
+		else:
+			base_size = node_instance.size
 		base_size.x = maxf(base_size.x, content_size.x)
 		base_size.y = maxf(base_size.y, content_size.y)
+		node_instance.set_meta("android_preview_base_size", base_size)
 		var android_preview_size := base_size * 1.20
 		node_instance.custom_minimum_size = android_preview_size
 		node_instance.size = android_preview_size
@@ -764,7 +772,7 @@ func _gui_input(event: InputEvent) -> void:
 	if (
 		OS.has_feature("android")
 		and (event is InputEventMouseButton or event is InputEventMouseMotion)
-		and AndroidAdapter.handle_grid_mouse_input(event)
+		and AndroidAdapterNode.handle_grid_mouse_input(event)
 	):
 		accept_event()
 		return

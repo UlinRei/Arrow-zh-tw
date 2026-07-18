@@ -29,6 +29,7 @@
 [ext_resource type="Script" uid="uid://bahvfetu2v2m8" path="res://scripts/editor/minimap.gd" id="26_g6oda"]
 [ext_resource type="Script" uid="uid://le3w7a81gfye" path="res://scripts/editor/query.gd" id="27_oamwo"]
 [ext_resource type="Script" uid="uid://c14jytxi60272" path="res://scripts/editor/quick_preferences.gd" id="28_jwiiu"]
+[ext_resource type="Script" path="res://scripts/android/android_adapter.gd" id="29_android"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_6unog"]
 atlas = ExtResource("7_0tmvq")
@@ -158,6 +159,9 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("1_nah4y")
 script = ExtResource("2_nfnrg")
+
+[node name="AndroidAdapter" type="Node" parent="."]
+script = ExtResource("29_android")
 
 [node name="Overlays" type="CanvasLayer" parent="." unique_id=1996519012]
 layer = 2
@@ -786,46 +790,66 @@ layout_mode = 2
 layout_mode = 2
 text = "[Action(s)]"
 
-[node name="AndroidContext" type="PanelContainer" parent="Overlays/Control"]
+[node name="AndroidContext" type="Control" parent="Overlays/Control"]
 visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="Shield" type="ColorRect" parent="Overlays/Control/AndroidContext"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.18)
+
+[node name="Menu" type="PanelContainer" parent="Overlays/Control/AndroidContext"]
 offset_right = 480.0
 offset_bottom = 520.0
 custom_minimum_size = Vector2(320, 280)
 mouse_filter = 0
 
-[node name="Margin" type="MarginContainer" parent="Overlays/Control/AndroidContext"]
+[node name="Margin" type="MarginContainer" parent="Overlays/Control/AndroidContext/Menu"]
 layout_mode = 2
 theme_type_variation = &"Margin16"
 
-[node name="Content" type="VBoxContainer" parent="Overlays/Control/AndroidContext/Margin"]
+[node name="Content" type="VBoxContainer" parent="Overlays/Control/AndroidContext/Menu/Margin"]
 layout_mode = 2
 theme_type_variation = &"BoxGap8"
 
-[node name="Header" type="HBoxContainer" parent="Overlays/Control/AndroidContext/Margin/Content"]
+[node name="Header" type="HBoxContainer" parent="Overlays/Control/AndroidContext/Menu/Margin/Content"]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="Overlays/Control/AndroidContext/Margin/Content/Header"]
+[node name="Title" type="Label" parent="Overlays/Control/AndroidContext/Menu/Margin/Content/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Insert"
 vertical_alignment = 1
 
-[node name="Close" type="Button" parent="Overlays/Control/AndroidContext/Margin/Content/Header"]
+[node name="Close" type="Button" parent="Overlays/Control/AndroidContext/Menu/Margin/Content/Header"]
 custom_minimum_size = Vector2(52, 44)
 layout_mode = 2
 text = "Close"
 
-[node name="NodeScroll" type="ScrollContainer" parent="Overlays/Control/AndroidContext/Margin/Content"]
+[node name="NodeScroll" type="ScrollContainer" parent="Overlays/Control/AndroidContext/Menu/Margin/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="NodeButtons" type="VBoxContainer" parent="Overlays/Control/AndroidContext/Margin/Content/NodeScroll"]
+[node name="NodeButtons" type="VBoxContainer" parent="Overlays/Control/AndroidContext/Menu/Margin/Content/NodeScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"BoxGap8"
 
-[node name="Tools" type="HBoxContainer" parent="Overlays/Control/AndroidContext/Margin/Content"]
+[node name="Tools" type="HBoxContainer" parent="Overlays/Control/AndroidContext/Menu/Margin/Content"]
 layout_mode = 2
 alignment = 1
 theme_type_variation = &"BoxGap8"

@@ -28,10 +28,6 @@ boot_splash/bg_color=Color(0.219608, 0.219608, 0.219608, 1)
 boot_splash/image="res://assets/boot_splash.png"
 config/icon="res://icon.svg"
 
-[autoload]
-
-AndroidAdapter="*res://scripts/android/android_adapter.gd"
-
 [audio]
 
 buses/default_bus_layout="res://assets/default_bus_layout.tres"

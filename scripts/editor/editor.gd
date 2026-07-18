@@ -36,7 +36,7 @@ func register_connections() -> void:
 	HistoryUndo.pressed.connect(self._request_mind.bind("history_rotate", -1))
 	HistoryRedo.pressed.connect(self._request_mind.bind("history_rotate", +1))
 	if OS.has_feature("android"):
-		SaveButton.pressed.connect(self._request_android_save)
+		SaveButton.button_down.connect(self._request_android_save)
 		SaveButton.gui_input.connect(self._on_android_save_gui_input)
 	else:
 		SaveButton.pressed.connect(self._request_mind.bind("save_project"))
@@ -48,12 +48,12 @@ func register_connections() -> void:
 
 
 func _on_android_save_gui_input(event: InputEvent) -> void:
-	var released := false
+	var activated := false
 	if event is InputEventScreenTouch:
-		released = not event.pressed
+		activated = event.pressed
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		released = not event.pressed
-	if released:
+		activated = event.pressed
+	if activated:
 		SaveButton.accept_event()
 		_request_android_save()
 
@@ -63,7 +63,10 @@ func _request_android_save() -> void:
 	if now - _android_last_save_request_ms < 350:
 		return
 	_android_last_save_request_ms = now
-	_request_mind("save_project")
+	if Main != null and Main.get("Mind") != null:
+		Main.Mind.call_deferred("save_project")
+	else:
+		_request_mind("save_project")
 
 func set_project_title(title:String) -> void:
 	ProjectTitle.set_deferred("text", title)
