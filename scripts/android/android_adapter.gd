@@ -183,15 +183,21 @@ func _input(event: InputEvent) -> void:
 
 
 func handle_grid_mouse_input(event: InputEvent) -> bool:
-	return _handle_emulated_canvas_mouse(event, true)
+	var global_position = null
+	if event is InputEventMouseButton or event is InputEventMouseMotion:
+		global_position = Grid.to_global(event.position)
+	return _handle_emulated_canvas_mouse(event, true, global_position)
 
 
 func _handle_emulated_canvas_mouse(
 	event: InputEvent,
-	from_grid_gui: bool
+	from_grid_gui: bool,
+	explicit_global_position = null
 ) -> bool:
 	var mouse_position := Vector2.ZERO
-	if event is InputEventMouseButton:
+	if explicit_global_position is Vector2:
+		mouse_position = explicit_global_position
+	elif event is InputEventMouseButton:
 		mouse_position = event.position
 	elif event is InputEventMouseMotion:
 		mouse_position = event.position
