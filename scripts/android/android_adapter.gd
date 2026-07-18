@@ -12,6 +12,8 @@ const KEYBOARD_MOVE_SPEED := 1800.0
 const ANDROID_BASE_DPI := 160.0
 const ANDROID_UI_SCALE_MIN := 1.0
 const ANDROID_UI_SCALE_MAX := 1.6
+const ANDROID_GRAPH_TOOL_SIZE := 64.0
+const ANDROID_GRAPH_TOOL_FONT_SIZE := 22
 
 enum CanvasMode {
 	NONE,
@@ -93,6 +95,7 @@ func _setup_android() -> void:
 	_create_selection_overlay()
 	_configure_optional_android_controls()
 	_apply_android_ui_scale()
+	_enlarge_graph_toolbar.call_deferred()
 
 
 func _configure_optional_android_controls() -> void:
@@ -126,6 +129,36 @@ func _apply_android_ui_scale() -> void:
 		ANDROID_UI_SCALE_MAX
 	)
 	get_window().content_scale_factor = android_scale
+
+
+func _enlarge_graph_toolbar() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_resize_graph_toolbar_controls(Grid)
+
+
+func _resize_graph_toolbar_controls(parent: Node) -> void:
+	for child in parent.get_children(true):
+		if child is GraphNode:
+			continue
+		if child is Control:
+			var control := child as Control
+			var toolbar_bottom := Grid.global_position.y + 72.0
+			if control.global_position.y <= toolbar_bottom:
+				control.custom_minimum_size.y = maxf(
+					control.custom_minimum_size.y,
+					ANDROID_GRAPH_TOOL_SIZE
+				)
+				if control is BaseButton:
+					control.custom_minimum_size.x = maxf(
+						control.custom_minimum_size.x,
+						ANDROID_GRAPH_TOOL_SIZE
+					)
+				control.add_theme_font_size_override(
+					"font_size",
+					ANDROID_GRAPH_TOOL_FONT_SIZE
+				)
+		_resize_graph_toolbar_controls(child)
 
 
 func _create_selection_overlay() -> void:

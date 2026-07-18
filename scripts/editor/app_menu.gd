@@ -51,6 +51,7 @@ func _ready() -> void:
 	self.update_menu_items_view()
 	if OS.has_feature("android"):
 		popup.index_pressed.connect(self._on_android_popup_index_pressed)
+		popup.window_input.connect(self._on_android_popup_window_input)
 	else:
 		popup.id_pressed.connect(self._on_self_popup_item_id_pressed, CONNECT_DEFERRED)
 	pass
@@ -74,6 +75,28 @@ func _configure_android_button() -> void:
 func _on_android_popup_index_pressed(index: int) -> void:
 	var item_id := popup.get_item_id(index)
 	_on_self_popup_item_id_pressed(item_id)
+
+
+func _on_android_popup_window_input(event: InputEvent) -> void:
+	var released := false
+	var event_position := Vector2.ZERO
+	if event is InputEventScreenTouch:
+		released = not event.pressed
+		event_position = event.position
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		released = not event.pressed
+		event_position = event.position
+	if not released:
+		return
+	_activate_android_popup_selection.call_deferred(event_position)
+
+
+func _activate_android_popup_selection(release_position: Vector2) -> void:
+	var index := popup.get_focused_item()
+	if index < 0 and release_position.y <= 72.0:
+		index = popup.get_item_index(_ID.PREFERENCES)
+	if index >= 0 and popup.get_item_id(index) == _ID.PREFERENCES:
+		_on_android_popup_index_pressed(index)
 
 func create_menu_items() -> void:
 	popup.clear()

@@ -67,7 +67,6 @@ icon_alignment = 1
 expand_icon = true
 
 [node name="Title" type="RichTextLabel" parent="Display"]
-visible = false
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -79,7 +78,6 @@ fit_content = true
 autowrap_mode = 0
 
 [node name="Brief" type="RichTextLabel" parent="Display"]
-visible = false
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 size_flags_horizontal = 3

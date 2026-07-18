@@ -416,13 +416,29 @@ func update_grid_node_box(instance_or_id, node:Dictionary) -> void:
 		node_instance.set_deferred("title", node.name)
 		# pass a clone of data to the plot node
 		var data_clone = node.data.duplicate(true) 
-		node_instance.call_deferred("_update_node", data_clone)
-		resize_to_best_fit(node_instance, data_clone)
+		if OS.has_feature("android"):
+			node_instance.call("_update_node", data_clone)
+			_resize_android_node_after_update.call_deferred(
+				node_instance,
+				data_clone
+			)
+		else:
+			node_instance.call_deferred("_update_node", data_clone)
+			resize_to_best_fit(node_instance, data_clone)
 	# now that we've changed a node box, we shall update minimap too
 	if USE_ARROW_MINIMAP:
 		await TheTree.process_frame # wait (none-blocking) skipping one _process
 		Minimap.call_deferred("refresh")
 	pass
+
+
+func _resize_android_node_after_update(
+	node_instance: GraphNode,
+	data: Dictionary
+) -> void:
+	await get_tree().process_frame
+	if is_instance_valid(node_instance):
+		resize_to_best_fit(node_instance, data)
 
 func update_grid_node_map(instance_or_id, map:Dictionary) -> void:
 	var node_instance = get_node_instance(instance_or_id)
