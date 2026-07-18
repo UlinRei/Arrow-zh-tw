@@ -700,6 +700,14 @@ func update_zoom(magnitude: float, direction: bool) -> void:
 	pass
 
 func _gui_input(event: InputEvent) -> void:
+	if (
+		OS.has_feature("android")
+		and (event is InputEventMouseButton or event is InputEventMouseMotion)
+		and AndroidAdapter.handle_grid_mouse_input(event)
+	):
+		accept_event()
+		return
+
 	if event is InputEventKey:
 		# Without Modifiers
 		# > Press

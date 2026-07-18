@@ -33,6 +33,7 @@ var _keyboard_shift := 0.0
 
 var _touch_points: Dictionary = {}
 var _suppress_emulated_canvas_mouse := false
+var _mouse_canvas_fallback_active := false
 
 var _canvas_mode := CanvasMode.NONE
 var _canvas_touch_index := -1
@@ -86,6 +87,9 @@ func _setup_android() -> void:
 
 	_main_base_position = Main.position
 	_apply_android_ui_scale()
+	Grid.child_entered_tree.connect(_refresh_android_graph_node)
+	for child in Grid.get_children():
+		_refresh_android_graph_node(child)
 	_create_selection_overlay()
 	_configure_optional_android_controls()
 	_setup_complete = true
@@ -121,15 +125,23 @@ func _apply_android_ui_scale() -> void:
 		ANDROID_UI_SCALE_MIN,
 		ANDROID_UI_SCALE_MAX
 	)
-	var android_theme := Main.theme.duplicate() as Theme
+	var base_theme := Main.theme
+	var android_theme := base_theme.duplicate() as Theme
 	if android_theme == null:
 		return
-	var canvas_theme := Main.theme.duplicate() as Theme
+	var canvas_theme := base_theme.duplicate() as Theme
 	if canvas_theme != null:
 		canvas_theme.default_base_scale = 1.0
 		Grid.theme = canvas_theme
 	android_theme.default_base_scale = android_scale
-	Main.theme = android_theme
+	for layer_path in [
+		"/root/Main",
+		"/root/Main/Overlays/Control",
+		"/root/Main/FloatingTools/Control",
+	]:
+		var layer := get_node_or_null(layer_path) as Control
+		if layer != null:
+			layer.theme = android_theme.duplicate()
 
 
 func _create_selection_overlay() -> void:
@@ -167,23 +179,54 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMagnifyGesture:
 		_handle_magnify_gesture(event)
 	elif event is InputEventMouseButton or event is InputEventMouseMotion:
-		_handle_emulated_canvas_mouse(event)
+		_handle_emulated_canvas_mouse(event, false)
 
 
-func _handle_emulated_canvas_mouse(event: InputEvent) -> void:
-	if not _suppress_emulated_canvas_mouse:
-		return
+func handle_grid_mouse_input(event: InputEvent) -> bool:
+	return _handle_emulated_canvas_mouse(event, true)
 
+
+func _handle_emulated_canvas_mouse(
+	event: InputEvent,
+	from_grid_gui: bool
+) -> bool:
 	var mouse_position := Vector2.ZERO
 	if event is InputEventMouseButton:
 		mouse_position = event.position
 	elif event is InputEventMouseMotion:
 		mouse_position = event.position
-	if Grid.get_global_rect().has_point(mouse_position):
-		get_viewport().set_input_as_handled()
 
-	if event is InputEventMouseButton and not event.pressed:
-		_suppress_emulated_canvas_mouse = false
+	if _suppress_emulated_canvas_mouse:
+		if Grid.get_global_rect().has_point(mouse_position):
+			get_viewport().set_input_as_handled()
+		if event is InputEventMouseButton and not event.pressed:
+			_suppress_emulated_canvas_mouse = false
+		return true
+
+	if not from_grid_gui:
+		return false
+
+	if event is InputEventMouseButton:
+		if event.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		if event.pressed:
+			if not _is_empty_canvas_point(mouse_position):
+				return false
+			_mouse_canvas_fallback_active = true
+			_begin_canvas_at(mouse_position, -2)
+		else:
+			if not _mouse_canvas_fallback_active:
+				return false
+			_finish_canvas_touch(mouse_position)
+			_mouse_canvas_fallback_active = false
+		get_viewport().set_input_as_handled()
+		return true
+
+	if event is InputEventMouseMotion and _mouse_canvas_fallback_active:
+		_update_canvas_drag(mouse_position)
+		get_viewport().set_input_as_handled()
+		return true
+	return false
 
 
 func _handle_screen_touch(event: InputEventScreenTouch) -> void:
@@ -207,6 +250,8 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 
 	else:
 		_touch_points.erase(event.index)
+		if _touch_points.is_empty():
+			_suppress_emulated_canvas_mouse = false
 
 		if _canvas_mode == CanvasMode.PINCH:
 			if _touch_points.size() < 2:
@@ -226,6 +271,22 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 			_finish_node_hold(event.position)
 
 
+func _refresh_android_graph_node(node: Node) -> void:
+	if not node is GraphNode:
+		return
+	await get_tree().process_frame
+	if not is_instance_valid(node):
+		return
+
+	var node_resource = node.get("_node_resource")
+	if not node_resource is Dictionary or not node_resource.has("data"):
+		return
+	var data_clone: Dictionary = node_resource.data.duplicate(true)
+	if node.has_method("_update_node"):
+		node.call("_update_node", data_clone)
+	Grid.resize_to_best_fit(node, data_clone)
+
+
 func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 	_touch_points[event.index] = event.position
 
@@ -238,23 +299,7 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 		_canvas_mode != CanvasMode.NONE
 		and event.index == _canvas_touch_index
 	):
-		_canvas_current = event.position
-		var travel := _canvas_origin.distance_to(_canvas_current)
-
-		match _canvas_mode:
-			CanvasMode.PENDING:
-				if travel >= PAN_START_DISTANCE:
-					_canvas_mode = CanvasMode.PAN
-					_update_canvas_pan()
-			CanvasMode.PAN:
-				_update_canvas_pan()
-			CanvasMode.LONG_READY:
-				if travel >= BOX_SELECT_START_DISTANCE:
-					_begin_box_selection()
-					_update_box_selection()
-			CanvasMode.BOX_SELECT:
-				_update_box_selection()
-
+		_update_canvas_drag(event.position)
 		get_viewport().set_input_as_handled()
 		return
 
@@ -305,12 +350,35 @@ func _cancel_active_canvas_gesture() -> void:
 
 func _begin_canvas_touch(event: InputEventScreenTouch) -> void:
 	_suppress_emulated_canvas_mouse = true
+	_begin_canvas_at(event.position, event.index)
+
+
+func _begin_canvas_at(position: Vector2, input_index: int) -> void:
 	_canvas_mode = CanvasMode.PENDING
-	_canvas_touch_index = event.index
-	_canvas_origin = event.position
-	_canvas_current = event.position
+	_canvas_touch_index = input_index
+	_canvas_origin = position
+	_canvas_current = position
 	_canvas_elapsed = 0.0
 	_canvas_start_scroll = Grid.get_scroll_offset()
+
+
+func _update_canvas_drag(position: Vector2) -> void:
+	_canvas_current = position
+	var travel := _canvas_origin.distance_to(_canvas_current)
+
+	match _canvas_mode:
+		CanvasMode.PENDING:
+			if travel >= PAN_START_DISTANCE:
+				_canvas_mode = CanvasMode.PAN
+				_update_canvas_pan()
+		CanvasMode.PAN:
+			_update_canvas_pan()
+		CanvasMode.LONG_READY:
+			if travel >= BOX_SELECT_START_DISTANCE:
+				_begin_box_selection()
+				_update_box_selection()
+		CanvasMode.BOX_SELECT:
+			_update_box_selection()
 
 
 func _finish_canvas_touch(release_position: Vector2) -> void:
