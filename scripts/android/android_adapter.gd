@@ -54,6 +54,7 @@ var InspectorToggleButton: Button
 var BottomQuery: Control
 var BottomPanel: Control
 var QueryInput: LineEdit
+var PreferencesPanel: Control
 
 var _setup_complete := false
 var _keyboard_shift := 0.0
@@ -87,11 +88,9 @@ var _node_resizing := false
 var _node_start_offset := Vector2.ZERO
 var _node_start_size := Vector2.ZERO
 
-var _pinch_start_distance := 1.0
-var _pinch_start_zoom := 1.0
-var _pinch_anchor_graph_position := Vector2.ZERO
+var _pinch_last_distance := 1.0
+var _pinch_last_midpoint := Vector2.ZERO
 var _pinch_update_pending := false
-var _pinch_pan_accumulator := Vector2.ZERO
 var _app_menu_touch_index := -1
 var _inspector_toggle_touch_index := -1
 var _control_touch_states: Dictionary = {}
@@ -166,7 +165,13 @@ func _setup_android() -> void:
 	QueryInput = get_node_or_null(
 		"/root/Main/Editor/Bottom/Bar/Query/Tools/Input"
 	) as LineEdit
+	PreferencesPanel = get_node_or_null(
+		"/root/Main/Overlays/Control/Preferences"
+	) as Control
 	_install_touch_control_handlers(Main)
+	# TabContainer creates its TabBar as an internal child.
+	for tab_container in Main.find_children("*", "TabContainer", true, false):
+		_install_touch_control_handlers(tab_container.get_tab_bar())
 	_touch_connection_preview = Line2D.new()
 	_touch_connection_preview.name = "AndroidConnectionPreview"
 	_touch_connection_preview.width = 4.0
@@ -264,6 +269,7 @@ func _on_native_control_touch(event: InputEvent, control: Control) -> void:
 			control.accept_event()
 			if control is LineEdit or control is TextEdit:
 				control.grab_focus()
+				_place_text_caret(control, event.position)
 		elif _control_touch_states.has(control.get_instance_id()):
 			var state: Dictionary = _control_touch_states[control.get_instance_id()]
 			_control_touch_states.erase(control.get_instance_id())
@@ -285,6 +291,9 @@ func _on_native_control_touch(event: InputEvent, control: Control) -> void:
 			return
 		state.current = event.position
 		_control_touch_states[state_key] = state
+		if control is LineEdit or control is TextEdit:
+			_place_text_caret(control, event.position)
+			control.accept_event()
 		if control is HSlider or control is VSlider:
 			_update_touch_slider(control as Range, event.position)
 			control.accept_event()
@@ -311,6 +320,7 @@ func _activate_native_control(control: Control, local_position: Vector2) -> void
 		button.pressed.emit()
 	elif control is LineEdit or control is TextEdit:
 		control.grab_focus()
+		_place_text_caret(control, local_position)
 	elif control is ItemList:
 		var item_list := control as ItemList
 		var item_index := item_list.get_item_at_position(local_position, true)
@@ -326,6 +336,19 @@ func _activate_native_control(control: Control, local_position: Vector2) -> void
 		_update_touch_slider(control as Range, local_position)
 
 
+func _place_text_caret(control: Control, local_position: Vector2) -> void:
+	if control is LineEdit:
+		var line_edit := control as LineEdit
+		line_edit.caret_column = line_edit.get_character_index_at_position(
+			int(local_position.x)
+		)
+	elif control is TextEdit:
+		var text_edit := control as TextEdit
+		var line_column := text_edit.get_line_column_at_pos(local_position)
+		text_edit.set_caret_line(line_column.y)
+		text_edit.set_caret_column(line_column.x)
+
+
 func _update_touch_slider(slider: Range, local_position: Vector2) -> void:
 	var ratio := 0.0
 	if slider is VSlider:
@@ -336,6 +359,8 @@ func _update_touch_slider(slider: Range, local_position: Vector2) -> void:
 
 
 func _prepare_touch_popup(popup: PopupMenu) -> void:
+	popup.add_theme_font_size_override("font_size", 24)
+	popup.add_theme_constant_override("v_separation", 12)
 	if popup.has_meta("android_touch_popup"):
 		return
 	popup.set_meta("android_touch_popup", true)
@@ -343,28 +368,35 @@ func _prepare_touch_popup(popup: PopupMenu) -> void:
 
 
 func _on_popup_touch(event: InputEvent, popup: PopupMenu) -> void:
+	if event is InputEventScreenDrag:
+		if _popup_touch_states.get(popup.get_instance_id(), -1) == event.index:
+			popup.set_focused_item(_popup_item_at_position(popup, event.position))
+		return
 	if not event is InputEventScreenTouch:
 		return
 	if event.pressed:
 		_popup_touch_states[popup.get_instance_id()] = event.index
+		popup.set_focused_item(_popup_item_at_position(popup, event.position))
 		return
 	if _popup_touch_states.get(popup.get_instance_id(), -1) != event.index:
 		return
 	_popup_touch_states.erase(popup.get_instance_id())
-	var item_count := popup.get_item_count()
-	if item_count <= 0 or popup.size.y <= 0:
+	var item_index := _popup_item_at_position(popup, event.position)
+	if item_index < 0:
 		popup.hide()
 		return
-	var item_index := clampi(
-		int(floor(event.position.y / (float(popup.size.y) / item_count))),
-		0,
-		item_count - 1
-	)
 	if popup.is_item_disabled(item_index) or popup.is_item_separator(item_index):
 		return
 	popup.index_pressed.emit(item_index)
 	popup.id_pressed.emit(popup.get_item_id(item_index))
 	popup.hide()
+
+
+func _popup_item_at_position(popup: PopupMenu, position: Vector2) -> int:
+	for item_index in popup.get_item_count():
+		if popup.get_item_rect(item_index).has_point(position):
+			return item_index
+	return -1
 
 
 func _on_query_focus_entered() -> void:
@@ -700,7 +732,8 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 	if _handle_android_menu_touch(event):
 		get_viewport().set_input_as_handled()
 		return
-	if _is_touch_control_area(event.position):
+	# Active gestures must always receive their release, even over a panel.
+	if event.pressed and _is_touch_control_area(event.position):
 		return
 
 	if event.pressed:
@@ -880,8 +913,7 @@ func _handle_pan_gesture(event: InputEventPanGesture) -> void:
 	if not Grid.get_global_rect().has_point(event.position):
 		return
 	if _touch_points.size() >= 2:
-		_pinch_pan_accumulator += event.delta
-		_pinch_update_pending = true
+		# Raw ScreenDrag midpoint handling below owns this gesture.
 		get_viewport().set_input_as_handled()
 		return
 	# Android reports two-finger navigation as PanGesture even when raw touch
@@ -1094,12 +1126,8 @@ func _begin_pinch() -> void:
 	var second: Vector2 = points[1]
 	var midpoint := (first + second) * 0.5
 
-	_pinch_start_distance = maxf(first.distance_to(second), 1.0)
-	_pinch_start_zoom = Grid.get_zoom()
-	_pinch_anchor_graph_position = (
-		Grid.get_scroll_offset() + Grid.to_local(midpoint)
-	) / _pinch_start_zoom
-	_pinch_pan_accumulator = Vector2.ZERO
+	_pinch_last_distance = maxf(first.distance_to(second), 1.0)
+	_pinch_last_midpoint = midpoint
 	_pinch_update_pending = true
 
 
@@ -1113,26 +1141,31 @@ func _update_pinch() -> void:
 	var midpoint := (first + second) * 0.5
 	var current_distance := maxf(first.distance_to(second), 1.0)
 
+	var old_zoom := Grid.get_zoom()
+	var graph_at_last_midpoint := (
+		Grid.get_scroll_offset() + Grid.to_local(_pinch_last_midpoint)
+	) / old_zoom
 	var new_zoom := clampf(
-		_pinch_start_zoom * current_distance / _pinch_start_distance,
+		old_zoom * current_distance / _pinch_last_distance,
 		Grid.get_zoom_min(),
 		Grid.get_zoom_max()
 	)
 
 	Grid.set_zoom(new_zoom)
 	Grid.set_scroll_offset(
-		_pinch_anchor_graph_position * new_zoom
+		graph_at_last_midpoint * new_zoom
 		- Grid.to_local(midpoint)
-		+ _pinch_pan_accumulator
 	)
+	_pinch_last_distance = current_distance
+	_pinch_last_midpoint = midpoint
 
 
 func _finish_pinch() -> void:
 	_canvas_mode = CanvasMode.NONE
 	_canvas_touch_index = -1
-	_pinch_start_distance = 1.0
+	_pinch_last_distance = 1.0
+	_pinch_last_midpoint = Vector2.ZERO
 	_pinch_update_pending = false
-	_pinch_pan_accumulator = Vector2.ZERO
 
 
 func _get_touch_pair() -> Array[Vector2]:
@@ -1380,6 +1413,8 @@ func _keyboard_panel_for(focused: Control) -> Control:
 		return NewDocumentPanel
 	if InspectorPanel != null and InspectorPanel.is_ancestor_of(focused):
 		return InspectorPanel
+	if PreferencesPanel != null and PreferencesPanel.is_ancestor_of(focused):
+		return PreferencesPanel
 	if (
 		BottomQuery != null
 		and (focused == BottomQuery or BottomQuery.is_ancestor_of(focused))
