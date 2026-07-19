@@ -26,6 +26,7 @@ const ANDROID_HISTORY_BUTTON_WIDTH := 48.0
 const ANDROID_HISTORY_BUTTON_GAP := 12
 const ANDROID_BOTTOM_ACTION_SIZE := Vector2(64.0, 48.0)
 const ANDROID_SCENE_TITLE_STRETCH := 0.65
+const ANDROID_QUERY_FONT_SIZE := 22
 const ANDROID_PROJECT_TITLE_FONT_SIZE := 22
 const ANDROID_SCENE_TITLE_FONT_SIZE := 26
 const ANDROID_INSPECTOR_BLOCKER_FONT_SIZE := 22
@@ -34,7 +35,7 @@ enum CanvasMode {
 	NONE,
 	PENDING,
 	LONG_READY,
-	DISABLED_DRAG,
+	PAN,
 	PINCH,
 }
 
@@ -67,6 +68,7 @@ var _canvas_mode := CanvasMode.NONE
 var _canvas_touch_index := -1
 var _canvas_origin := Vector2.ZERO
 var _canvas_current := Vector2.ZERO
+var _canvas_start_scroll := Vector2.ZERO
 var _canvas_elapsed := 0.0
 var _last_empty_tap_time_ms := -1000
 var _last_empty_tap_position := Vector2.ZERO
@@ -402,6 +404,11 @@ func _refine_bottom_query_layout() -> void:
 	if query_input != null:
 		query_input.custom_minimum_size.x = 0.0
 		query_input.size_flags_stretch_ratio = 0.75
+		query_input.add_theme_font_size_override(
+			"font_size",
+			ANDROID_QUERY_FONT_SIZE
+		)
+		query_input.focus_entered.connect(_hide_inspector_for_query)
 	for path in [
 		"/root/Main/Editor/Bottom/Bar/Query/Tools/Scoped",
 		"/root/Main/Editor/Bottom/Bar/Query/Tools/Search",
@@ -412,6 +419,11 @@ func _refine_bottom_query_layout() -> void:
 			button.expand_icon = true
 			button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+
+
+func _hide_inspector_for_query() -> void:
+	if InspectorPanel != null and InspectorPanel.is_visible_in_tree():
+		Main.UI.set_panel_visibility("inspector", false)
 
 
 func _enlarge_android_titles() -> void:
@@ -645,7 +657,7 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 		_canvas_mode != CanvasMode.NONE
 		and event.index == _canvas_touch_index
 	):
-		_canvas_current = event.position
+		_update_canvas_drag(event.position)
 		get_viewport().set_input_as_handled()
 		return
 
@@ -704,6 +716,7 @@ func _begin_canvas_at(position: Vector2, input_index: int) -> void:
 	_canvas_touch_index = input_index
 	_canvas_origin = position
 	_canvas_current = position
+	_canvas_start_scroll = Grid.get_scroll_offset()
 	_canvas_elapsed = 0.0
 
 
@@ -713,9 +726,11 @@ func _update_canvas_drag(position: Vector2) -> void:
 		_canvas_mode == CanvasMode.PENDING
 		and _canvas_origin.distance_to(position) > TAP_MOVE_DISTANCE
 	):
-		# Android deliberately has no selection rectangle. Keep consuming the
-		# complete empty-canvas drag so GraphEdit cannot start native box select.
-		_canvas_mode = CanvasMode.DISABLED_DRAG
+		_canvas_mode = CanvasMode.PAN
+	if _canvas_mode == CanvasMode.PAN:
+		Grid.set_scroll_offset(
+			_canvas_start_scroll - (position - _canvas_origin)
+		)
 
 
 func _finish_canvas_touch(release_position: Vector2) -> void:
@@ -731,13 +746,14 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 		CanvasMode.LONG_READY:
 			# The menu was already shown as soon as the hold threshold elapsed.
 			pass
-		CanvasMode.DISABLED_DRAG:
-			# Empty-canvas drag is intentionally a no-op on Android.
+		CanvasMode.PAN:
+			# The canvas was moved continuously during the drag.
 			pass
 
 	_canvas_mode = CanvasMode.NONE
 	_canvas_touch_index = -1
 	_canvas_origin = Vector2.ZERO
+	_canvas_start_scroll = Vector2.ZERO
 	_canvas_elapsed = 0.0
 
 

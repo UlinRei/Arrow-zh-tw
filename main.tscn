@@ -813,8 +813,9 @@ color = Color(0, 0, 0, 0.18)
 [node name="Menu" type="PanelContainer" parent="Overlays/Control/AndroidContext"]
 offset_right = 480.0
 offset_bottom = 520.0
-custom_minimum_size = Vector2(320, 280)
+custom_minimum_size = Vector2(0, 0)
 mouse_filter = 0
+clip_contents = true
 
 [node name="Margin" type="MarginContainer" parent="Overlays/Control/AndroidContext/Menu"]
 layout_mode = 2

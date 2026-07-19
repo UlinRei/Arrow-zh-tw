@@ -477,30 +477,13 @@ func _resize_android_node_after_update(
 
 
 func _get_android_content_bounding_box(node_instance: GraphNode) -> Vector2:
-	var measured_size := node_instance.get_combined_minimum_size()
-	var pending: Array[Dictionary] = []
+	var measured_size := Vector2.ZERO
 	for child in node_instance.get_children():
-		if child is Control:
-			pending.append({
-				"control": child,
-				"offset": (child as Control).position,
-			})
-	while not pending.is_empty():
-		var item: Dictionary = pending.pop_back()
-		var control := item.control as Control
-		if control == null or not control.is_visible_in_tree():
-			continue
-		var offset: Vector2 = item.offset
-		var control_size := control.size.max(
-			control.get_combined_minimum_size()
-		)
-		measured_size = measured_size.max(offset + control_size)
-		for child in control.get_children():
-			if child is Control:
-				pending.append({
-					"control": child,
-					"offset": offset + (child as Control).position,
-				})
+		if child is Control and child.is_visible_in_tree():
+			var control := child as Control
+			measured_size = measured_size.max(
+				control.position + control.get_combined_minimum_size()
+			)
 	return measured_size
 
 
@@ -790,7 +773,18 @@ func resize_to_best_fit(instance, data: Dictionary) -> void:
 	pass
 
 func _on_resize_request(new_size, instance) -> void:
-	var min_bounding = get_min_content_bounding_box(instance)
+	var min_bounding = (
+		_get_android_content_bounding_box(instance)
+		if OS.has_feature("android")
+		else get_min_content_bounding_box(instance)
+	)
+	if OS.has_feature("android"):
+		var applied_size: Vector2 = (new_size as Vector2).max(min_bounding)
+		instance._node_resource.data.rect = (
+			Helpers.Utils.vector2_to_array(applied_size)
+		)
+		instance.size = applied_size
+		return
 	@warning_ignore("INCOMPATIBLE_TERNARY")
 	var rect_size_array = Helpers.Utils.vector2_to_array(new_size) if new_size > min_bounding else null
 	# emulate change for user to see
@@ -799,6 +793,10 @@ func _on_resize_request(new_size, instance) -> void:
 	pass
 
 func _on_resize_end(new_size, instance) -> void:
+	if OS.has_feature("android"):
+		new_size = (new_size as Vector2).max(
+			_get_android_content_bounding_box(instance)
+		)
 	var rect_size_array = Helpers.Utils.vector2_to_array(new_size)
 	Main.Mind.central_event_dispatcher.call(
 		"update_resource",
@@ -831,11 +829,10 @@ func _gui_input(event: InputEvent) -> void:
 		# also interpreting the same drag as a selection rectangle.
 		accept_event()
 		return
-	if (
-		OS.has_feature("android")
-		and (event is InputEventMouseButton or event is InputEventMouseMotion)
-		and AndroidAdapterNode.handle_grid_mouse_input(event)
+	if OS.has_feature("android") and (
+		event is InputEventMouseButton or event is InputEventMouseMotion
 	):
+		AndroidAdapterNode.handle_grid_mouse_input(event)
 		accept_event()
 		return
 

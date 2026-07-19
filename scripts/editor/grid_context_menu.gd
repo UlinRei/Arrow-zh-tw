@@ -71,11 +71,14 @@ func _setup_android_context_menu() -> void:
 		return
 	# Reuse the actual desktop controls so mouse and keyboard selection semantics
 	# (including Ctrl toggle and Shift range selection) stay exactly identical.
-	var types_box := NodeInsertList.get_parent() as VBoxContainer
-	types_box.reparent(_ANDROID_CONTENT, false)
+	var node_panel := NodeInsertList.get_parent().get_parent() as PanelContainer
+	node_panel.reparent(_ANDROID_CONTENT, false)
 	EditToolBox.reparent(_ANDROID_CONTENT, false)
-	NodeInsertList.custom_minimum_size = Vector2(360, 240)
+	NodeInsertList.custom_minimum_size = Vector2.ZERO
 	NodeInsertList.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var popup_style := get_theme_stylebox("panel", "PopupPanel")
+	if popup_style != null:
+		_ANDROID_PANEL.add_theme_stylebox_override("panel", popup_style)
 	NodeInsertList.gui_input.connect(_on_android_list_gui_input)
 	set_process_input(true)
 	set_process(true)
@@ -91,6 +94,7 @@ func _configure_android_list_scrollbar() -> void:
 		# Scrolling remains available through wheel and kinetic touch gestures;
 		# only direct manipulation of the narrow slider is disabled.
 		scroll_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		scroll_bar.modulate.a = 0.0
 
 
 func _input(event: InputEvent) -> void:
@@ -203,18 +207,19 @@ func _position_android_overlay() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	_ANDROID_OVERLAY.position = Vector2.ZERO
 	_ANDROID_OVERLAY.size = viewport_size
-	var desired_size := Vector2(
-		clampf(viewport_size.x * 0.46, 320.0, 440.0),
-		clampf(viewport_size.y * 0.64, 280.0, 420.0)
-	)
+	var desired_size := Vector2(320.0, 300.0)
+	desired_size = desired_size.min(viewport_size - Vector2.ONE * 32.0)
 	_ANDROID_PANEL.custom_minimum_size = desired_size
 	_ANDROID_PANEL.size = desired_size
-	var tap_position: Vector2 = _ANDROID_OVERLAY.to_local(
-		_CLICK_POINT_POSITION
-	)
+	# Touch positions and this full-screen CanvasLayer overlay share viewport
+	# coordinates. Converting through the Control transform can collapse the
+	# popup position to (0, 0) on Android display scaling.
+	var tap_position := _CLICK_POINT_POSITION
 	# Match the desktop popup: open just after the invocation point instead of
 	# centering the panel over the user's fingers.
-	var desired_position: Vector2 = tap_position + Vector2(12.0, 12.0)
+	var desired_position := (viewport_size - desired_size) * 0.5
+	if tap_position != Vector2.ZERO:
+		desired_position = tap_position + Vector2(12.0, 12.0)
 	var edge_margin := 16.0
 	_ANDROID_PANEL.position = Vector2(
 		clampf(
@@ -268,14 +273,10 @@ func _refresh_android_node_type_list() -> void:
 
 
 func _on_android_shield_gui_input(event: InputEvent) -> void:
-	if (
-		(event is InputEventScreenTouch and event.pressed)
-		or (
-			event is InputEventMouseButton
-			and event.button_index == MOUSE_BUTTON_LEFT
-			and event.pressed
-		)
-	):
+	# Raw Android touch outside the panel closes the overlay. Ignoring the
+	# synthesized mouse event prevents the gesture that opened the menu from
+	# immediately closing it again on the full-screen shield.
+	if event is InputEventScreenTouch and event.pressed:
 		_ANDROID_OVERLAY.accept_event()
 		_ANDROID_OVERLAY.hide()
 
