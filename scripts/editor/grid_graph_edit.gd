@@ -467,9 +467,7 @@ func _resize_android_node_after_update(
 		base_size.x = maxf(base_size.x, content_size.x)
 		base_size.y = maxf(base_size.y, content_size.y)
 		node_instance.set_meta("android_preview_base_size", base_size)
-		var android_preview_size := (
-			base_size if has_explicit_size else base_size * 1.20
-		)
+		var android_preview_size := base_size
 		# Keep the content as the true minimum. The previous preview size was also
 		# used as the minimum, which made the Android resize handle enlarge-only.
 		node_instance.custom_minimum_size = content_size
@@ -825,6 +823,14 @@ func update_zoom(magnitude: float, direction: bool) -> void:
 	pass
 
 func _gui_input(event: InputEvent) -> void:
+	if (
+		OS.has_feature("android")
+		and (event is InputEventScreenTouch or event is InputEventScreenDrag)
+	):
+		# AndroidAdapter handles raw canvas touch globally. Stop GraphEdit from
+		# also interpreting the same drag as a selection rectangle.
+		accept_event()
+		return
 	if (
 		OS.has_feature("android")
 		and (event is InputEventMouseButton or event is InputEventMouseMotion)

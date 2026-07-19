@@ -76,6 +76,7 @@ func _setup_android_context_menu() -> void:
 	EditToolBox.reparent(_ANDROID_CONTENT, false)
 	NodeInsertList.custom_minimum_size = Vector2(360, 240)
 	NodeInsertList.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	NodeInsertList.gui_input.connect(_on_android_list_gui_input)
 	set_process_input(true)
 	set_process(true)
 	_configure_android_list_scrollbar.call_deferred()
@@ -104,18 +105,20 @@ func _input(event: InputEvent) -> void:
 		and Time.get_ticks_msec() <= _android_suppress_mouse_until_ms
 	):
 		get_viewport().set_input_as_handled()
-		return
+
+
+func _on_android_list_gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
-		if event.pressed and NodeInsertList.get_global_rect().has_point(event.position):
+		if event.pressed:
 			_android_list_touch_index = event.index
 			_android_list_touch_origin = event.position
 			_android_list_last_position = event.position
 			_android_list_velocity = 0.0
 			_android_list_dragging = false
-		elif not event.pressed and event.index == _android_list_touch_index:
+		elif event.index == _android_list_touch_index:
 			if _android_list_dragging:
 				_android_suppress_mouse_until_ms = Time.get_ticks_msec() + 180
-				get_viewport().set_input_as_handled()
+				NodeInsertList.accept_event()
 			_android_list_touch_index = -1
 		return
 	if event is InputEventScreenDrag and event.index == _android_list_touch_index:
@@ -131,7 +134,7 @@ func _input(event: InputEvent) -> void:
 				scroll_bar.value -= drag_delta
 			_android_list_velocity = -event.velocity.y
 			_android_list_last_position = event.position
-			get_viewport().set_input_as_handled()
+			NodeInsertList.accept_event()
 
 
 func _process(delta: float) -> void:
@@ -201,15 +204,17 @@ func _position_android_overlay() -> void:
 	_ANDROID_OVERLAY.position = Vector2.ZERO
 	_ANDROID_OVERLAY.size = viewport_size
 	var desired_size := Vector2(
-		clampf(viewport_size.x * 0.58, 360.0, 560.0),
-		clampf(viewport_size.y * 0.78, 280.0, 520.0)
+		clampf(viewport_size.x * 0.46, 320.0, 440.0),
+		clampf(viewport_size.y * 0.64, 280.0, 420.0)
 	)
 	_ANDROID_PANEL.custom_minimum_size = desired_size
 	_ANDROID_PANEL.size = desired_size
 	var tap_position: Vector2 = _ANDROID_OVERLAY.to_local(
 		_CLICK_POINT_POSITION
 	)
-	var desired_position: Vector2 = tap_position - desired_size * 0.5
+	# Match the desktop popup: open just after the invocation point instead of
+	# centering the panel over the user's fingers.
+	var desired_position: Vector2 = tap_position + Vector2(12.0, 12.0)
 	var edge_margin := 16.0
 	_ANDROID_PANEL.position = Vector2(
 		clampf(

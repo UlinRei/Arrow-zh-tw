@@ -818,7 +818,10 @@ mouse_filter = 0
 
 [node name="Margin" type="MarginContainer" parent="Overlays/Control/AndroidContext/Menu"]
 layout_mode = 2
-theme_type_variation = &"Margin16"
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
 
 [node name="Content" type="VBoxContainer" parent="Overlays/Control/AndroidContext/Menu/Margin"]
 layout_mode = 2

@@ -17,13 +17,18 @@ const ANDROID_GRAPH_TOOL_SIZE := 64.0
 const ANDROID_GRAPH_BUTTON_SIZE := ANDROID_GRAPH_TOOL_SIZE * 0.85
 const ANDROID_GRAPH_NUMBER_HEIGHT := ANDROID_GRAPH_TOOL_SIZE * 0.90
 const ANDROID_GRAPH_NUMBER_WIDTH_SCALE := 0.75
-const ANDROID_GRAPH_ZOOM_LABEL_SHIFT := 12.0
+const ANDROID_GRAPH_ZOOM_LABEL_SHIFT := 18.0
 const ANDROID_GRAPH_TOOL_FONT_SIZE := 22
 const ANDROID_GRAPH_NUMBER_FONT_SIZE := 30
 const ANDROID_GRAPH_TOOL_ICON_SIZE := 34
 const ANDROID_TOP_ACTION_SCALE := 1.5
+const ANDROID_HISTORY_BUTTON_WIDTH := 48.0
+const ANDROID_HISTORY_BUTTON_GAP := 12
+const ANDROID_BOTTOM_ACTION_SIZE := Vector2(64.0, 48.0)
+const ANDROID_SCENE_TITLE_STRETCH := 0.65
 const ANDROID_PROJECT_TITLE_FONT_SIZE := 22
-const ANDROID_SCENE_TITLE_FONT_SIZE := 20
+const ANDROID_SCENE_TITLE_FONT_SIZE := 26
+const ANDROID_INSPECTOR_BLOCKER_FONT_SIZE := 22
 
 enum CanvasMode {
 	NONE,
@@ -143,6 +148,8 @@ func _setup_android() -> void:
 	_apply_android_ui_scale()
 	_enlarge_graph_toolbar.call_deferred()
 	_enlarge_top_right_actions.call_deferred()
+	_enlarge_history_actions.call_deferred()
+	_refine_bottom_query_layout.call_deferred()
 	_enlarge_android_titles.call_deferred()
 	Main.UI.call_deferred("_apply_android_inspector_layout")
 	if InspectorToggleButton != null:
@@ -250,7 +257,7 @@ func _refine_graph_toolbar_layout() -> void:
 	if toolbar == null:
 		return
 
-	toolbar.add_theme_constant_override("separation", -6)
+	toolbar.add_theme_constant_override("separation", 8)
 	var spacer := toolbar.get_node_or_null("AndroidZoomLabelSpacer") as Control
 	if spacer == null:
 		spacer = Control.new()
@@ -364,6 +371,49 @@ func _enlarge_top_right_actions() -> void:
 			indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
+func _enlarge_history_actions() -> void:
+	await get_tree().process_frame
+	var history_tools := get_node_or_null(
+		"/root/Main/Editor/Top/Bar/History/Tools"
+	) as HBoxContainer
+	if history_tools == null:
+		return
+	history_tools.add_theme_constant_override(
+		"separation",
+		ANDROID_HISTORY_BUTTON_GAP
+	)
+	for child in history_tools.get_children():
+		if child is Button:
+			var button := child as Button
+			button.custom_minimum_size.x = ANDROID_HISTORY_BUTTON_WIDTH
+			button.expand_icon = true
+
+
+func _refine_bottom_query_layout() -> void:
+	await get_tree().process_frame
+	var scene_title := get_node_or_null(
+		"/root/Main/Editor/Bottom/Bar/SceneTitle"
+	) as Label
+	if scene_title != null:
+		scene_title.size_flags_stretch_ratio = ANDROID_SCENE_TITLE_STRETCH
+	var query_input := get_node_or_null(
+		"/root/Main/Editor/Bottom/Bar/Query/Tools/Input"
+	) as LineEdit
+	if query_input != null:
+		query_input.custom_minimum_size.x = 0.0
+		query_input.size_flags_stretch_ratio = 0.75
+	for path in [
+		"/root/Main/Editor/Bottom/Bar/Query/Tools/Scoped",
+		"/root/Main/Editor/Bottom/Bar/Query/Tools/Search",
+	]:
+		var button := get_node_or_null(path) as Button
+		if button != null:
+			button.custom_minimum_size = ANDROID_BOTTOM_ACTION_SIZE
+			button.expand_icon = true
+			button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+
+
 func _enlarge_android_titles() -> void:
 	await get_tree().process_frame
 	var project_title := get_node_or_null(
@@ -381,6 +431,14 @@ func _enlarge_android_titles() -> void:
 		scene_title.add_theme_font_size_override(
 			"font_size",
 			ANDROID_SCENE_TITLE_FONT_SIZE
+		)
+	var inspector_blocker := get_node_or_null(
+		"/root/Main/FloatingTools/Control/Inspector/Sections/Tabs/Node/Blocker"
+	) as Label
+	if inspector_blocker != null:
+		inspector_blocker.add_theme_font_size_override(
+			"font_size",
+			ANDROID_INSPECTOR_BLOCKER_FONT_SIZE
 		)
 
 
@@ -605,7 +663,7 @@ func _handle_pan_gesture(event: InputEventPanGesture) -> void:
 	# the canvas visually follows the gesture.
 	_cancel_active_canvas_gesture()
 	_suppress_emulated_canvas_mouse = true
-	Grid.set_scroll_offset(Grid.get_scroll_offset() - event.delta)
+	Grid.set_scroll_offset(Grid.get_scroll_offset() + event.delta)
 	get_viewport().set_input_as_handled()
 
 
@@ -840,7 +898,8 @@ func _show_context_menu(global_position: Vector2) -> void:
 	if ContextMenu == null or Grid == null:
 		return
 
-	ContextMenu.show_up(
+	ContextMenu.call_deferred(
+		"show_up",
 		global_position,
 		Grid.offset_from_position(Grid.to_local(global_position))
 	)
