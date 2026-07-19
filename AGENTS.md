@@ -65,6 +65,11 @@
 - Linux Artifact 必須包含 `Arrow.x86_64`、`Arrow.pck`，以及保留執行權限的 `tar.gz`。
 - GitHub JavaScript Actions 使用支援 Node.js 24 的版本，目前為 `actions/checkout@v6` 與 `actions/upload-artifact@v7`。
 
+## Git 提交訊息
+
+- 代理建立的 Git 提交標題使用台灣繁體中文（zh-TW）。
+- 命令、參數、檔案路徑、程式碼識別名稱與必要的專有名詞維持原文。
+
 ## Git 與工作區安全
 
 - 既有或不相關的修改視為使用者內容，不可任意還原、覆蓋或刪除。
