@@ -1,7 +1,6 @@
 name: Build Android Test APK
 
 on:
-  workflow_dispatch:
   workflow_call:
 
 permissions:
