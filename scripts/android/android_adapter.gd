@@ -266,22 +266,17 @@ func _on_native_control_touch(event: InputEvent, control: Control) -> void:
 				"index": event.index,
 				"origin": event.position,
 				"current": event.position,
+				"started_ms": Time.get_ticks_msec(),
+				"long_pressed": false,
 			}
 			control.accept_event()
 			if control is LineEdit or control is TextEdit:
-				var already_focused := control.has_focus()
 				control.grab_focus()
-				if already_focused:
-					_place_text_caret(
-						control,
-						control.get_global_transform_with_canvas().affine_inverse()
-							* event.position
-					)
-				else:
-					if control is LineEdit:
-						(control as LineEdit).select_all()
-					else:
-						(control as TextEdit).select_all()
+				_place_text_caret(
+					control,
+					control.get_global_transform_with_canvas().affine_inverse()
+						* event.position
+				)
 		elif _control_touch_states.has(control.get_instance_id()):
 			var state: Dictionary = _control_touch_states[control.get_instance_id()]
 			_control_touch_states.erase(control.get_instance_id())
@@ -391,19 +386,17 @@ func _on_popup_touch(event: InputEvent, popup: PopupMenu) -> void:
 	if _popup_touch_states.get(popup.get_instance_id(), -1) != event.index:
 		return
 	_popup_touch_states.erase(popup.get_instance_id())
-	var item_count := popup.get_item_count()
-	if item_count <= 0 or popup.size.y <= 0:
+	var item_index := _popup_item_at_position(popup, event.position)
+	if item_index < 0:
+		popup.set_focused_item(-1)
 		popup.hide()
 		return
-	var item_index := clampi(
-		int(floor(event.position.y / (float(popup.size.y) / item_count))),
-		0,
-		item_count - 1
-	)
 	if popup.is_item_disabled(item_index) or popup.is_item_separator(item_index):
+		popup.set_focused_item(-1)
 		return
 	popup.index_pressed.emit(item_index)
 	popup.id_pressed.emit(popup.get_item_id(item_index))
+	popup.set_focused_item(-1)
 	popup.hide()
 
 
@@ -723,6 +716,33 @@ func handle_raw_touch_input(event: InputEvent) -> void:
 		_handle_pan_gesture(event)
 	elif event is InputEventMagnifyGesture:
 		_handle_magnify_gesture(event)
+	elif (
+		event is InputEventKey
+		and event.pressed
+		and not event.echo
+		and event.keycode == KEY_BACKSPACE
+	):
+		_schedule_android_backspace_fallback()
+
+
+func _schedule_android_backspace_fallback() -> void:
+	var focused := get_viewport().gui_get_focus_owner()
+	if not (focused is LineEdit or focused is TextEdit):
+		return
+	_ensure_android_backspace.call_deferred(focused, focused.text)
+
+
+func _ensure_android_backspace(control: Control, original_text: String) -> void:
+	if not is_instance_valid(control) or control.text != original_text:
+		return
+	if control is LineEdit:
+		(control as LineEdit).delete_char_at_caret()
+	elif control is TextEdit:
+		var text_edit := control as TextEdit
+		if text_edit.has_selection():
+			text_edit.delete_selection()
+		else:
+			text_edit.backspace()
 
 
 func _handle_screen_touch(event: InputEventScreenTouch) -> void:
@@ -1316,8 +1336,7 @@ func _finish_touch_connection(global_position: Vector2) -> void:
 				start.slot
 			)
 		return
-	ContextMenu.call_deferred(
-		"show_up",
+	_open_android_context_menu.call_deferred(
 		global_position,
 		Grid.offset_from_position(Grid.to_local(global_position)),
 		[start.node._node_id, start.slot, start.outgoing]
@@ -1328,11 +1347,25 @@ func _show_context_menu(global_position: Vector2) -> void:
 	if ContextMenu == null or Grid == null:
 		return
 
-	ContextMenu.call_deferred(
-		"show_up",
+	_open_android_context_menu.call_deferred(
 		global_position,
 		Grid.offset_from_position(Grid.to_local(global_position))
 	)
+
+
+func _open_android_context_menu(
+	global_position: Vector2,
+	document_offset: Vector2,
+	quick_insertion = null
+) -> void:
+	if ContextMenu == null or AndroidContextOverlay == null:
+		return
+	ContextMenu.show_up(global_position, document_offset, quick_insertion)
+	await get_tree().process_frame
+	# Showing once more after the release has fully propagated prevents the same
+	# touch sequence from closing the overlay immediately.
+	AndroidContextOverlay.show()
+	ContextMenu.call("_position_android_overlay")
 
 
 func _clear_selection() -> void:
@@ -1366,7 +1399,31 @@ func _process(delta: float) -> void:
 			_show_context_menu(_node_hold_current)
 			# Vibration intentionally disabled while testing Android long press.
 
+	_update_text_control_long_press()
 	_update_keyboard_avoidance(delta)
+
+
+func _update_text_control_long_press() -> void:
+	for instance_id in _control_touch_states:
+		var state: Dictionary = _control_touch_states[instance_id]
+		if state.get("long_pressed", false):
+			continue
+		if (
+			Time.get_ticks_msec() - int(state.get("started_ms", 0))
+			< int(LONG_PRESS_SECONDS * 1000.0)
+		):
+			continue
+		if state.origin.distance_to(state.current) > TAP_MOVE_DISTANCE:
+			continue
+		var control := instance_from_id(instance_id) as Control
+		if control is LineEdit:
+			(control as LineEdit).select_all()
+		elif control is TextEdit:
+			(control as TextEdit).select_all()
+		else:
+			continue
+		state.long_pressed = true
+		_control_touch_states[instance_id] = state
 
 
 func _update_keyboard_avoidance(delta: float) -> void:

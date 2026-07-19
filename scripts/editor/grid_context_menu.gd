@@ -42,6 +42,7 @@ var _android_list_last_position := Vector2.ZERO
 var _android_list_velocity := 0.0
 var _android_list_dragging := false
 var _android_suppress_mouse_until_ms := -1000
+var _android_setup_complete := false
 
 func _ready() -> void:
 	register_connections()
@@ -50,6 +51,8 @@ func _ready() -> void:
 	pass
 
 func _setup_android_context_menu() -> void:
+	if _android_setup_complete:
+		return
 	_ANDROID_OVERLAY = get_node_or_null(
 		"/root/Main/Overlays/Control/AndroidContext"
 	) as Control
@@ -85,6 +88,7 @@ func _setup_android_context_menu() -> void:
 	_configure_android_list_scrollbar.call_deferred()
 	if shield != null:
 		shield.gui_input.connect(_on_android_shield_gui_input)
+	_android_setup_complete = true
 
 
 func _configure_android_list_scrollbar() -> void:
@@ -185,6 +189,8 @@ func show_up(on_position:Vector2, offset:Vector2, quick_insertion = null) -> voi
 	_CLICK_POINT_OFFSET = offset
 	set_quick_insert_mode(quick_insertion)
 	if OS.has_feature("android"):
+		if not _android_setup_complete:
+			_setup_android_context_menu()
 		if _ANDROID_OVERLAY == null or _ANDROID_PANEL == null:
 			return
 		NodeInsertFilterInput.clear()
