@@ -54,6 +54,7 @@ var InspectorToggleButton: Button
 var BottomQuery: Control
 var BottomPanel: Control
 var QueryInput: LineEdit
+var PreferencesPanel: Control
 
 var _setup_complete := false
 var _keyboard_shift := 0.0
@@ -166,7 +167,12 @@ func _setup_android() -> void:
 	QueryInput = get_node_or_null(
 		"/root/Main/Editor/Bottom/Bar/Query/Tools/Input"
 	) as LineEdit
+	PreferencesPanel = get_node_or_null(
+		"/root/Main/Overlays/Control/Preferences"
+	) as Control
 	_install_touch_control_handlers(Main)
+	for tab_container in Main.find_children("*", "TabContainer", true, false):
+		_install_touch_control_handlers(tab_container.get_tab_bar())
 	_touch_connection_preview = Line2D.new()
 	_touch_connection_preview.name = "AndroidConnectionPreview"
 	_touch_connection_preview.width = 4.0
@@ -264,6 +270,7 @@ func _on_native_control_touch(event: InputEvent, control: Control) -> void:
 			control.accept_event()
 			if control is LineEdit or control is TextEdit:
 				control.grab_focus()
+				_place_text_caret(control, event.position)
 		elif _control_touch_states.has(control.get_instance_id()):
 			var state: Dictionary = _control_touch_states[control.get_instance_id()]
 			_control_touch_states.erase(control.get_instance_id())
@@ -311,6 +318,7 @@ func _activate_native_control(control: Control, local_position: Vector2) -> void
 		button.pressed.emit()
 	elif control is LineEdit or control is TextEdit:
 		control.grab_focus()
+		_place_text_caret(control, local_position)
 	elif control is ItemList:
 		var item_list := control as ItemList
 		var item_index := item_list.get_item_at_position(local_position, true)
@@ -324,6 +332,19 @@ func _activate_native_control(control: Control, local_position: Vector2) -> void
 			tab_bar.current_tab = tab_index
 	elif control is HSlider or control is VSlider:
 		_update_touch_slider(control as Range, local_position)
+
+
+func _place_text_caret(control: Control, local_position: Vector2) -> void:
+	if control is LineEdit:
+		var line_edit := control as LineEdit
+		line_edit.caret_column = line_edit.get_character_index_at_position(
+			int(local_position.x)
+		)
+	elif control is TextEdit:
+		var text_edit := control as TextEdit
+		var line_column := text_edit.get_line_column_at_pos(local_position)
+		text_edit.set_caret_line(line_column.y)
+		text_edit.set_caret_column(line_column.x)
 
 
 func _update_touch_slider(slider: Range, local_position: Vector2) -> void:
@@ -343,10 +364,15 @@ func _prepare_touch_popup(popup: PopupMenu) -> void:
 
 
 func _on_popup_touch(event: InputEvent, popup: PopupMenu) -> void:
+	if event is InputEventScreenDrag:
+		if _popup_touch_states.get(popup.get_instance_id(), -1) == event.index:
+			popup.set_focused_item(_popup_item_at_position(popup, event.position))
+		return
 	if not event is InputEventScreenTouch:
 		return
 	if event.pressed:
 		_popup_touch_states[popup.get_instance_id()] = event.index
+		popup.set_focused_item(_popup_item_at_position(popup, event.position))
 		return
 	if _popup_touch_states.get(popup.get_instance_id(), -1) != event.index:
 		return
@@ -365,6 +391,13 @@ func _on_popup_touch(event: InputEvent, popup: PopupMenu) -> void:
 	popup.index_pressed.emit(item_index)
 	popup.id_pressed.emit(popup.get_item_id(item_index))
 	popup.hide()
+
+
+func _popup_item_at_position(popup: PopupMenu, position: Vector2) -> int:
+	for item_index in popup.get_item_count():
+		if popup.get_item_rect(item_index).has_point(position):
+			return item_index
+	return -1
 
 
 func _on_query_focus_entered() -> void:
@@ -700,7 +733,7 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 	if _handle_android_menu_touch(event):
 		get_viewport().set_input_as_handled()
 		return
-	if _is_touch_control_area(event.position):
+	if event.pressed and _is_touch_control_area(event.position):
 		return
 
 	if event.pressed:
@@ -880,8 +913,8 @@ func _handle_pan_gesture(event: InputEventPanGesture) -> void:
 	if not Grid.get_global_rect().has_point(event.position):
 		return
 	if _touch_points.size() >= 2:
-		_pinch_pan_accumulator += event.delta
-		_pinch_update_pending = true
+		# The raw touch midpoint already supplies two-finger translation. Adding
+		# PanGesture here applies the same movement twice and causes large jumps.
 		get_viewport().set_input_as_handled()
 		return
 	# Android reports two-finger navigation as PanGesture even when raw touch
@@ -1380,6 +1413,8 @@ func _keyboard_panel_for(focused: Control) -> Control:
 		return NewDocumentPanel
 	if InspectorPanel != null and InspectorPanel.is_ancestor_of(focused):
 		return InspectorPanel
+	if PreferencesPanel != null and PreferencesPanel.is_ancestor_of(focused):
+		return PreferencesPanel
 	if (
 		BottomQuery != null
 		and (focused == BottomQuery or BottomQuery.is_ancestor_of(focused))
