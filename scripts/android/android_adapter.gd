@@ -269,8 +269,19 @@ func _on_native_control_touch(event: InputEvent, control: Control) -> void:
 			}
 			control.accept_event()
 			if control is LineEdit or control is TextEdit:
+				var already_focused := control.has_focus()
 				control.grab_focus()
-				_place_text_caret(control, event.position)
+				if already_focused:
+					_place_text_caret(
+						control,
+						control.get_global_transform_with_canvas().affine_inverse()
+							* event.position
+					)
+				else:
+					if control is LineEdit:
+						(control as LineEdit).select_all()
+					else:
+						(control as TextEdit).select_all()
 		elif _control_touch_states.has(control.get_instance_id()):
 			var state: Dictionary = _control_touch_states[control.get_instance_id()]
 			_control_touch_states.erase(control.get_instance_id())
@@ -317,8 +328,9 @@ func _activate_native_control(control: Control, local_position: Vector2) -> void
 			button.toggled.emit(button.button_pressed)
 		button.pressed.emit()
 	elif control is LineEdit or control is TextEdit:
-		control.grab_focus()
-		_place_text_caret(control, local_position)
+		# Text focus, initial selection and caret placement are handled on press.
+		# Repeating them on release cancels the selection before the IME can edit.
+		pass
 	elif control is ItemList:
 		var item_list := control as ItemList
 		var item_index := item_list.get_item_at_position(local_position, true)
@@ -357,6 +369,8 @@ func _update_touch_slider(slider: Range, local_position: Vector2) -> void:
 
 
 func _prepare_touch_popup(popup: PopupMenu) -> void:
+	popup.add_theme_font_size_override("font_size", 24)
+	popup.add_theme_constant_override("v_separation", 12)
 	if popup.has_meta("android_touch_popup"):
 		return
 	popup.set_meta("android_touch_popup", true)
@@ -1302,7 +1316,8 @@ func _finish_touch_connection(global_position: Vector2) -> void:
 				start.slot
 			)
 		return
-	ContextMenu.show_up(
+	ContextMenu.call_deferred(
+		"show_up",
 		global_position,
 		Grid.offset_from_position(Grid.to_local(global_position)),
 		[start.node._node_id, start.slot, start.outgoing]
