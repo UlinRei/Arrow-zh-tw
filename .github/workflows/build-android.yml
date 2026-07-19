@@ -14,7 +14,7 @@ concurrency:
 env:
   GODOT_VERSION: 4.7
   GODOT_STATUS: stable
-  APK_NAME: Arrow-3.1.0-ZhTW-1-Android-arm64-debug.apk
+  APK_NAME: Arrow-3.1.0-ZhTW-2-Android-arm64-debug.apk
 
 jobs:
   build-android:

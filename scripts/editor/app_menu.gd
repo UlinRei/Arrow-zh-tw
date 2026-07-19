@@ -5,7 +5,10 @@
 # App Menu
 extends MenuButton
 
-const ANDROID_MENU_BUTTON_SIZE := Vector2(64.0, 56.0)
+const DESKTOP_MENU_BUTTON_SIZE := Vector2(56.0, 56.0)
+const ANDROID_MENU_BUTTON_SIZE := Vector2(64.0, 64.0)
+const DESKTOP_MENU_ICON_SIZE := 40
+const ANDROID_MENU_ICON_SIZE := 46
 
 @onready var TheTree = get_tree()
 @onready var TheWindow = TheTree.get_root()
@@ -66,13 +69,19 @@ func _configure_app_button() -> void:
 	text = ""
 	icon = app_icon
 	expand_icon = true
+	icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 	tooltip_text = "Arrow"
 	if OS.has_feature("android"):
 		custom_minimum_size = ANDROID_MENU_BUTTON_SIZE
+		add_theme_constant_override("icon_max_width", ANDROID_MENU_ICON_SIZE)
 		tooltip_text = "Preferences"
 		# AndroidAdapter handles this touch target directly so MenuButton does not
 		# briefly open its popup while the finger is held down.
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+	else:
+		custom_minimum_size = DESKTOP_MENU_BUTTON_SIZE
+		add_theme_constant_override("icon_max_width", DESKTOP_MENU_ICON_SIZE)
 
 
 func _open_android_preferences() -> void:

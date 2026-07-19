@@ -32,7 +32,7 @@ const LOCALIZED_LEGAL_FILES = {
 const COPYRIGHT_PLUS = ["res://assets/fonts/copyright"]
 
 func _ready() -> void:
-	AppVersionDisplay.set_text("%s-ZhTW-1" % Settings.ARROW_VERSION)
+	AppVersionDisplay.set_text("%s-ZhTW-2" % Settings.ARROW_VERSION)
 	Copyright.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	Welcome.fit_content = false
 	Welcome.scroll_active = true

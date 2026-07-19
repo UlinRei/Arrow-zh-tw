@@ -1,14 +1,21 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Arrow\\n"
-"Language: zh_TW\\n"
-"MIME-Version: 1.0\\n"
-"Content-Type: text/plain; charset=UTF-8\\n"
-"Content-Transfer-Encoding: 8bit\\n"
-"Plural-Forms: nplurals=1; plural=0;\\n"
+"Project-Id-Version: Arrow\n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 3.9\n"
 
 msgid "Tag Match"
 msgstr "標籤比對"
+
+msgid "TAG_MATCH_CONSOLE_ACT_EOL"
+msgstr "終止節點："
+
+msgid "TAG_MATCH_CONSOLE_ACT_MATCH"
+msgstr "符合"
 
 msgid "TAG_MATCH_INSPECTOR_FIELD_CHARACTER"
 msgstr "角色"
@@ -17,7 +24,7 @@ msgid "TAG_MATCH_INSPECTOR_APPLY_GLOBAL_CHAR_FILTERS_TOOLTIP"
 msgstr "套用角色屬性面板中設定的全域篩選條件。目前節點使用的角色一定會列出。"
 
 msgid "TAG_MATCH_INSPECTOR_FIELD_KEY"
-msgstr "標籤鍵"
+msgstr "標籤"
 
 msgid "TAG_MATCH_INSPECTOR_FIELD_KEY_PLACEHOLDER"
 msgstr "必填且不可空白"
@@ -29,13 +36,13 @@ msgid "TAG_MATCH_INSPECTOR_OPT_REGEX"
 msgstr "正規表示式"
 
 msgid "TAG_MATCH_CONSOLE_INVALID_OR_UNSET_KEY"
-msgstr "無效的標籤鍵"
+msgstr "無效的標籤"
 
 msgid "TAG_MATCH_INSPECTOR_NO_CHARACTER_TXT"
-msgstr "沒有可用的角色"
+msgstr "無可用角色"
 
 msgid "TAG_MATCH_NODE_INVALID_OR_UNSET_KEY"
-msgstr "無效的標籤鍵！"
+msgstr "無效的標籤！"
 
 msgid "TAG_MATCH_INVALID_CHAR_NAME"
-msgstr "無效的角色"
+msgstr "無效角色名稱"

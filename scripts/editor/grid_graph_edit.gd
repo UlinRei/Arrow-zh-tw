@@ -17,6 +17,7 @@ const USE_ARROW_MINIMAP:bool = Settings.CLASSIC_MINIMAP_ENABLED
 
 const NODE_NAME_FROM_ID_PREFIX = "GRID_GRAPH_NODE_WITH_ID_"
 const ANDROID_NODE_DISPLAY_SCALE := 1.15
+const DESKTOP_TOOLBAR_SCALE := 1.2
 
 var DEFAULT_ZOOM:float
 var _ALLOW_ASSISTED_CONNECTION = true
@@ -41,12 +42,67 @@ func _ready() -> void:
 	# ...
 	register_connections()
 	setup_valid_connection_types()
+	_configure_desktop_toolbar.call_deferred()
 	# classic minimap ?
 	if USE_ARROW_MINIMAP :
 		MinimapBox.set_visible( ! self.is_minimap_enabled() )
 	else:
 		self.set_minimap_enabled(true)
 	pass
+
+func _configure_desktop_toolbar() -> void:
+	if OS.has_feature("android"):
+		return
+	await get_tree().process_frame
+	var toolbar := get_menu_hbox()
+	if toolbar == null or toolbar.has_meta("desktop_toolbar_scaled"):
+		return
+	toolbar.set_meta("desktop_toolbar_scaled", true)
+	var separation := toolbar.get_theme_constant("separation")
+	toolbar.add_theme_constant_override(
+		"separation",
+		ceili(float(separation) * DESKTOP_TOOLBAR_SCALE)
+	)
+	toolbar.custom_minimum_size.y = ceilf(
+		toolbar.size.y * DESKTOP_TOOLBAR_SCALE
+	)
+	for child in toolbar.get_children():
+		if child is not Control:
+			continue
+		var control := child as Control
+		var scaled_size := (control.size * DESKTOP_TOOLBAR_SCALE).ceil()
+		control.custom_minimum_size = control.custom_minimum_size.max(scaled_size)
+		control.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var font_size := control.get_theme_font_size("font_size")
+		if font_size > 0:
+			control.add_theme_font_size_override(
+				"font_size",
+				ceili(float(font_size) * DESKTOP_TOOLBAR_SCALE)
+			)
+		if control is Label:
+			var label := control as Label
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		elif control is Button:
+			var button := control as Button
+			button.expand_icon = true
+			button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+			button.add_theme_constant_override(
+				"icon_max_width",
+				ceili(scaled_size.y * 0.65)
+			)
+		elif control is SpinBox:
+			var line_edit := (control as SpinBox).get_line_edit()
+			line_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+			line_edit.add_theme_font_size_override(
+				"font_size",
+				ceili(
+					float(line_edit.get_theme_font_size("font_size"))
+					* DESKTOP_TOOLBAR_SCALE
+				)
+			)
+	toolbar.queue_sort()
 
 func register_connections() -> void:
 	self.popup_request.connect(self._on_popup_request, CONNECT_DEFERRED)
