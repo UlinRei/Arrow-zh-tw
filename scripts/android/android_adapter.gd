@@ -101,10 +101,7 @@ func _enter_tree() -> void:
 	if OS.has_feature("android"):
 		# Keep touch and mouse as independent input streams. Android gestures are
 		# handled below; a connected mouse remains entirely native GraphEdit input.
-		ProjectSettings.set_setting(
-			"input_devices/pointing/emulate_mouse_from_touch",
-			false
-		)
+		Input.set_emulate_mouse_from_touch(false)
 
 
 func _ready() -> void:
