@@ -493,7 +493,29 @@ func _get_android_content_bounding_box(node_instance: GraphNode) -> Vector2:
 			measured_size = measured_size.max(
 				control.position + control.get_combined_minimum_size()
 			)
+	measured_size.x = maxf(
+		measured_size.x,
+		_get_node_type_minimum_width(node_instance)
+	)
 	return measured_size
+
+
+func _get_node_type_minimum_width(node_instance: GraphNode) -> float:
+	var kind := node_instance.find_child("Kind", true, false) as Button
+	if kind == null:
+		return 0.0
+	var font := kind.get_theme_font("font")
+	var font_size := kind.get_theme_font_size("font_size")
+	var text_width := font.get_string_size(
+		kind.text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1.0,
+		font_size
+	).x
+	var icon_allowance := float(font_size) * 1.8 if kind.icon != null else 0.0
+	# Ports, the icon/text separation and GraphNode's horizontal margins are not
+	# included in the disabled flat button's combined minimum size.
+	return text_width + icon_allowance + 48.0
 
 
 func _apply_android_node_typography(node_instance: GraphNode) -> void:
@@ -769,26 +791,36 @@ func enable_manual_inspection(instance) -> void:
 	instance.gui_input.connect(self._on_node_gui_input.bind(instance), CONNECT_DEFERRED)
 	pass
 
-func get_min_content_bounding_box(instance) -> Vector2:
-	var real_fit = Vector2.ZERO
+func get_min_content_bounding_box(instance: GraphNode) -> Vector2:
+	var real_fit := Vector2.ZERO
 	for child in instance.get_children():
-		var child_size = child.get_size()
-		if child_size.x > real_fit.x:
-			real_fit.x = child_size.x
-		if child_size.y > real_fit.y:
-			real_fit.y = child_size.y
+		if child is Control and child.is_visible_in_tree():
+			var control := child as Control
+			real_fit = real_fit.max(
+				control.position + control.get_combined_minimum_size()
+			)
+	real_fit.x = maxf(real_fit.x, _get_node_type_minimum_width(instance))
 	return real_fit
 
-func shrink_to_fit(instance:Node) -> void:
+func shrink_to_fit(instance: GraphNode) -> void:
 	if is_instance_valid(instance):
-		var minimum_fit = get_min_content_bounding_box(instance)
+		var minimum_fit := get_min_content_bounding_box(instance)
+		instance.custom_minimum_size = minimum_fit
 		instance.set_deferred("size", minimum_fit)
 	pass
 
-func resize_to_best_fit(instance, data: Dictionary) -> void:
+func resize_to_best_fit(instance: GraphNode, data: Dictionary) -> void:
+	var minimum_fit := (
+		_get_android_content_bounding_box(instance)
+		if OS.has_feature("android")
+		else get_min_content_bounding_box(instance)
+	)
+	instance.custom_minimum_size = minimum_fit
 	if data.has("rect") && data.rect is Array && data.rect.size() >= 2 :
 		var new_size = Helpers.Utils.array_to_vector2(data.rect)
-		instance.set_deferred("size", new_size)
+		if OS.has_feature("android"):
+			new_size = document_to_view_vector(new_size)
+		instance.set_deferred("size", (new_size as Vector2).max(minimum_fit))
 	else:
 		shrink_to_fit(instance)
 	pass

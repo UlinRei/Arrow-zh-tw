@@ -47,7 +47,7 @@ var _ID = {} # ids
 var _android_preferences_queued := false
 
 func _ready() -> void:
-	_configure_android_button()
+	_configure_app_button()
 	self.create_menu_items()
 	self.update_menu_items_view()
 	if OS.has_feature("android"):
@@ -58,10 +58,7 @@ func _ready() -> void:
 	pass
 
 
-func _configure_android_button() -> void:
-	if not OS.has_feature("android"):
-		return
-
+func _configure_app_button() -> void:
 	var app_icon := load("res://icon.svg") as Texture2D
 	if app_icon == null:
 		return
@@ -69,11 +66,13 @@ func _configure_android_button() -> void:
 	text = ""
 	icon = app_icon
 	expand_icon = true
-	custom_minimum_size = ANDROID_MENU_BUTTON_SIZE
-	tooltip_text = "Preferences"
-	# AndroidAdapter handles this touch target directly so MenuButton does not
-	# briefly open its popup while the finger is held down.
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tooltip_text = "Arrow"
+	if OS.has_feature("android"):
+		custom_minimum_size = ANDROID_MENU_BUTTON_SIZE
+		tooltip_text = "Preferences"
+		# AndroidAdapter handles this touch target directly so MenuButton does not
+		# briefly open its popup while the finger is held down.
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _open_android_preferences() -> void:

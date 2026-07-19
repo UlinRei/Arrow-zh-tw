@@ -401,7 +401,7 @@ msgid "History Undo (Ctrl + Z)"
 msgstr "復原（Ctrl + Z）"
 
 msgid "History Redo (Ctrl + Shift + Z)"
-msgstr "重做（Ctrl + Shift + Z）"
+msgstr "重做（Ctrl + Shift + Z / Ctrl + Y）"
 
 msgid "Play from Project Entry (F4)"
 msgstr "從專案入口開始播放（F4）"
@@ -434,7 +434,7 @@ msgid "Locate Next Match (Ctrl + 2)"
 msgstr "尋找下一筆符合項目（Ctrl + 2）"
 
 msgid "Toggle Inspector Panel (Ctrl + P)"
-msgstr "切換屬性面板（Ctrl + P）"
+msgstr "開啟屬性面板（Ctrl + P）"
 
 msgid "Inspect."
 msgstr "屬性面板"
@@ -573,32 +573,34 @@ msgstr "匯出 CSV"
 msgid "FILTER_REVERSE_TOOLTIP"
 msgstr ""
 "反向篩選\n"
-"（顯示不符合條件的項目。）"
+"（顯示不符合條件的項目）"
 
 msgid "SORT_AZ_OR_UID_TOOLTIP"
 msgstr ""
 "依字母順序排序\n"
-"（否則依 UID 排序。）"
+"（否則依 UID 排序）"
 
 msgid "SCOPED_QUERY_TOOLTIP"
 msgstr ""
 "限定場景：篩選目前場景\n"
-"（否則搜尋整個專案。）"
+"（否則搜尋整個專案）"
 
 msgid "Toggle the visual grid."
-msgstr "切換視覺網格。"
+msgstr "開啟視覺網格"
 
 msgid "Toggle snapping to the grid."
-msgstr "切換網格貼齊。"
+msgstr "開啟網格貼齊"
 
 msgid "Toggle the graph minimap."
-msgstr "切換圖表小地圖。"
+msgstr "切換小地圖"
 
 msgid "Automatically arrange selected nodes."
-msgstr "自動排列選取的節點。"
+msgstr ""
+"自動排列選取的節點\n"
+"（未選取則自動排列全部）"
 
 msgid "Zoom Reset"
-msgstr "重設縮放"
+msgstr "重設為100%"
 
 msgid "Zoom In"
 msgstr "放大"
@@ -617,10 +619,10 @@ msgstr ""
 "點也無法移除。"
 
 msgid "Non-removable(s): "
-msgstr "無法移除："
+msgstr "無法移除的節點編號："
 
 msgid "Hides Console Preserving the State"
 msgstr "隱藏主控台並保留目前狀態"
 
 msgid "Clears Console & State of Play"
-msgstr "清除主控台與遊玩狀態"
+msgstr "清除主控台與播放狀態"
