@@ -810,7 +810,7 @@ grow_vertical = 2
 mouse_filter = 0
 color = Color(0, 0, 0, 0.18)
 
-[node name="Center" type="Control" parent="Overlays/Control/AndroidContext"]
+[node name="Center" type="CenterContainer" parent="Overlays/Control/AndroidContext"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -820,7 +820,7 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="Menu" type="PanelContainer" parent="Overlays/Control/AndroidContext/Center"]
-layout_mode = 0
+layout_mode = 2
 custom_minimum_size = Vector2(0, 0)
 mouse_filter = 0
 clip_contents = true
