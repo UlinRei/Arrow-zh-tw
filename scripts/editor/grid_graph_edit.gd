@@ -16,6 +16,7 @@ signal request_mind()
 const USE_ARROW_MINIMAP:bool = Settings.CLASSIC_MINIMAP_ENABLED
 
 const NODE_NAME_FROM_ID_PREFIX = "GRID_GRAPH_NODE_WITH_ID_"
+const ANDROID_NODE_DISPLAY_SCALE := 1.15
 
 var DEFAULT_ZOOM:float
 var _ALLOW_ASSISTED_CONNECTION = true
@@ -80,6 +81,12 @@ func offset_from_position(local_pose:Vector2) -> Vector2:
 	# position is also relative to the top left corner of the parent (visible part), therefore:
 	var grid_offset_of_position = (sc_offset + local_pose) / self.get_zoom()
 	return grid_offset_of_position
+
+func document_to_view_vector(value: Vector2) -> Vector2:
+	return value * (ANDROID_NODE_DISPLAY_SCALE if OS.has_feature("android") else 1.0)
+
+func view_to_document_vector(value: Vector2) -> Vector2:
+	return value / (ANDROID_NODE_DISPLAY_SCALE if OS.has_feature("android") else 1.0)
 
 func current_mouse_offset() -> Vector2:
 	return offset_from_position( self.get_local_mouse_position() )
@@ -459,7 +466,9 @@ func _resize_android_node_after_update(
 			and data.rect.size() >= 2
 		)
 		if has_explicit_size:
-			base_size = Helpers.Utils.array_to_vector2(data.rect)
+			base_size = document_to_view_vector(
+				Helpers.Utils.array_to_vector2(data.rect)
+			)
 		elif node_instance.has_meta("android_preview_base_size"):
 			base_size = node_instance.get_meta("android_preview_base_size")
 		else:
@@ -532,7 +541,10 @@ func _force_android_content_preview(
 func update_grid_node_map(instance_or_id, map:Dictionary) -> void:
 	var node_instance = get_node_instance(instance_or_id)
 	if node_instance is Node:
-		node_instance.set_deferred("position_offset", Helpers.Utils.array_to_vector2(map.offset) )
+		node_instance.set_deferred(
+			"position_offset",
+			document_to_view_vector(Helpers.Utils.array_to_vector2(map.offset))
+		)
 		if map.has("skip") && map.skip == true:
 			set_node_skip(node_instance, true)
 	if USE_ARROW_MINIMAP:
@@ -671,7 +683,9 @@ func cut_off_connections(node_id: int, direction: String, last_kept: int) -> voi
 func _on_node_move_end() -> void:
 	# here might be more than one node selected and moved, so...
 	for node_id in _ALREADY_SELECTED_NODES_BY_ID:
-		var the_node_offset_vector = _ALREADY_SELECTED_NODES_BY_ID[node_id].get_position_offset()
+		var the_node_offset_vector = view_to_document_vector(
+			_ALREADY_SELECTED_NODES_BY_ID[node_id].get_position_offset()
+		)
 		_request_mind("update_node_map", {
 			"id": node_id,
 			"offset": Helpers.Utils.vector2_to_array(the_node_offset_vector)
@@ -781,7 +795,7 @@ func _on_resize_request(new_size, instance) -> void:
 	if OS.has_feature("android"):
 		var applied_size: Vector2 = (new_size as Vector2).max(min_bounding)
 		instance._node_resource.data.rect = (
-			Helpers.Utils.vector2_to_array(applied_size)
+			Helpers.Utils.vector2_to_array(view_to_document_vector(applied_size))
 		)
 		instance.size = applied_size
 		return
@@ -797,7 +811,12 @@ func _on_resize_end(new_size, instance) -> void:
 		new_size = (new_size as Vector2).max(
 			_get_android_content_bounding_box(instance)
 		)
-	var rect_size_array = Helpers.Utils.vector2_to_array(new_size)
+	var stored_size: Vector2 = (
+		view_to_document_vector(new_size)
+		if OS.has_feature("android")
+		else new_size
+	)
+	var rect_size_array = Helpers.Utils.vector2_to_array(stored_size)
 	Main.Mind.central_event_dispatcher.call(
 		"update_resource",
 		{
@@ -825,8 +844,13 @@ func _gui_input(event: InputEvent) -> void:
 		OS.has_feature("android")
 		and (event is InputEventScreenTouch or event is InputEventScreenDrag)
 	):
-		# AndroidAdapter handles raw canvas touch globally. Stop GraphEdit from
-		# also interpreting the same drag as a selection rectangle.
+		if event is InputEventScreenTouch and event.pressed:
+			var android_adapter := Main.get_node_or_null("AndroidAdapter")
+			if android_adapter != null:
+				android_adapter.handle_grid_touch_press(
+					event,
+					get_global_rect().position + event.position
+				)
 		accept_event()
 		return
 	if event is InputEventKey:

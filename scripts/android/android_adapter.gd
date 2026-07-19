@@ -53,6 +53,7 @@ var EditorPanel: Control
 var InspectorToggleButton: Button
 var BottomQuery: Control
 var BottomPanel: Control
+var QueryInput: LineEdit
 
 var _setup_complete := false
 var _keyboard_shift := 0.0
@@ -94,6 +95,7 @@ var _inspector_toggle_touch_index := -1
 var _control_touch_states: Dictionary = {}
 var _touch_connection: Dictionary = {}
 var _touch_connection_preview: Line2D
+var _inspector_hidden_for_query := false
 
 
 func _enter_tree() -> void:
@@ -155,6 +157,9 @@ func _setup_android() -> void:
 	BottomPanel = get_node_or_null(
 		"/root/Main/Editor/Bottom"
 	) as Control
+	QueryInput = get_node_or_null(
+		"/root/Main/Editor/Bottom/Bar/Query/Tools/Input"
+	) as LineEdit
 	_install_touch_control_handlers(Main)
 	_touch_connection_preview = Line2D.new()
 	_touch_connection_preview.name = "AndroidConnectionPreview"
@@ -162,6 +167,9 @@ func _setup_android() -> void:
 	_touch_connection_preview.default_color = Color(0.9, 0.9, 0.9, 0.9)
 	_touch_connection_preview.visible = false
 	Main.add_child(_touch_connection_preview)
+	if QueryInput != null:
+		QueryInput.focus_entered.connect(_on_query_focus_entered)
+		QueryInput.focus_exited.connect(_on_query_focus_exited)
 
 	DisplayServer.screen_set_orientation(
 		DisplayServer.SCREEN_SENSOR_LANDSCAPE
@@ -188,9 +196,35 @@ func _configure_optional_android_controls() -> void:
 		preferences_panel.anchor_bottom = 0.92
 		preferences_panel.offset_top = 0.0
 		preferences_panel.offset_bottom = 0.0
+	var path_dialog := get_node_or_null(
+		"/root/Main/Overlays/Control/PathDialog"
+	)
+	if path_dialog is FileDialog:
+		path_dialog.use_native_dialog = true
+	var work_dir_row := get_node_or_null(
+		"/root/Main/Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/WorkDir"
+	)
+	if work_dir_row is CanvasItem:
+		work_dir_row.hide()
+	var interface_font_row := get_node_or_null(
+		"/root/Main/Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/Font"
+	)
+	if interface_font_row is CanvasItem:
+		interface_font_row.hide()
 
 
 func _install_touch_control_handlers(node: Node) -> void:
+	if (
+		(ContextMenu != null and (node == ContextMenu or ContextMenu.is_ancestor_of(node)))
+		or (
+			AndroidContextOverlay != null
+			and (
+				node == AndroidContextOverlay
+				or AndroidContextOverlay.is_ancestor_of(node)
+			)
+		)
+	):
+		return
 	if not node.has_meta("android_touch_tree_handler"):
 		node.set_meta("android_touch_tree_handler", true)
 		node.child_entered_tree.connect(_install_touch_control_handlers)
@@ -221,9 +255,9 @@ func _on_native_control_touch(event: InputEvent, control: Control) -> void:
 				"origin": event.position,
 				"current": event.position,
 			}
+			control.accept_event()
 			if control is LineEdit or control is TextEdit:
 				control.grab_focus()
-				control.accept_event()
 		elif _control_touch_states.has(control.get_instance_id()):
 			var state: Dictionary = _control_touch_states[control.get_instance_id()]
 			_control_touch_states.erase(control.get_instance_id())
@@ -251,7 +285,15 @@ func _on_native_control_touch(event: InputEvent, control: Control) -> void:
 
 
 func _activate_native_control(control: Control, local_position: Vector2) -> void:
-	if control is BaseButton:
+	if control is OptionButton:
+		var option_button := control as OptionButton
+		if not option_button.disabled:
+			option_button.show_popup()
+	elif control is MenuButton:
+		var menu_button := control as MenuButton
+		if not menu_button.disabled:
+			menu_button.show_popup()
+	elif control is BaseButton:
 		var button := control as BaseButton
 		if button.disabled:
 			return
@@ -284,23 +326,17 @@ func _update_touch_slider(slider: Range, local_position: Vector2) -> void:
 		ratio = clampf(local_position.x / maxf(slider.size.x, 1.0), 0.0, 1.0)
 	slider.value = lerpf(slider.min_value, slider.max_value, ratio)
 
-	var path_dialog := get_node_or_null(
-		"/root/Main/Overlays/Control/PathDialog"
-	)
-	if path_dialog is FileDialog:
-		path_dialog.use_native_dialog = true
 
-	var work_dir_row := get_node_or_null(
-		"/root/Main/Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/WorkDir"
-	)
-	if work_dir_row is CanvasItem:
-		work_dir_row.hide()
+func _on_query_focus_entered() -> void:
+	if InspectorPanel != null and InspectorPanel.is_visible_in_tree():
+		_inspector_hidden_for_query = true
+		Main.UI.set_panel_visibility("inspector", false)
 
-	var interface_font_row := get_node_or_null(
-		"/root/Main/Overlays/Control/Preferences/Margin/Sections/Configs/Scroll/Params/Font"
-	)
-	if interface_font_row is CanvasItem:
-		interface_font_row.hide()
+
+func _on_query_focus_exited() -> void:
+	if _inspector_hidden_for_query:
+		_inspector_hidden_for_query = false
+		Main.UI.set_panel_visibility("inspector", true)
 
 func _apply_android_ui_scale() -> void:
 	var dpi := float(DisplayServer.screen_get_dpi())
@@ -612,6 +648,8 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 	if _handle_android_menu_touch(event):
 		get_viewport().set_input_as_handled()
 		return
+	if _is_touch_control_area(event.position):
+		return
 
 	if event.pressed:
 		_touch_points[event.index] = event.position
@@ -643,17 +681,6 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 				get_viewport().set_input_as_handled()
 				return
 			_begin_node_hold(event, node_id)
-			get_viewport().set_input_as_handled()
-			return
-
-		if _is_empty_canvas_point(event.position):
-			if event.double_tap or _is_manual_double_tap(event.position):
-				_last_empty_tap_time_ms = -1000
-				_cancel_active_canvas_gesture()
-				_show_context_menu(event.position)
-				get_viewport().set_input_as_handled()
-				return
-			_begin_canvas_touch(event)
 			get_viewport().set_input_as_handled()
 			return
 
@@ -722,6 +749,17 @@ func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
 				not InspectorPanel.is_visible_in_tree()
 			)
 		return true
+	return false
+
+
+func _is_touch_control_area(global_position: Vector2) -> bool:
+	for panel in [InspectorPanel, BottomPanel, NewDocumentPanel]:
+		if (
+			panel != null
+			and panel.is_visible_in_tree()
+			and panel.get_global_rect().has_point(global_position)
+		):
+			return true
 	return false
 
 
@@ -848,6 +886,7 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 			if _canvas_origin.distance_to(release_position) <= TAP_MOVE_DISTANCE:
 				_last_empty_tap_time_ms = Time.get_ticks_msec()
 				_last_empty_tap_position = release_position
+			_dismiss_text_input()
 			_clear_selection()
 		CanvasMode.LONG_READY:
 			# The menu was already shown as soon as the hold threshold elapsed.
@@ -861,6 +900,31 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 	_canvas_origin = Vector2.ZERO
 	_canvas_start_scroll = Vector2.ZERO
 	_canvas_elapsed = 0.0
+
+
+func handle_grid_touch_press(
+	event: InputEventScreenTouch,
+	global_position: Vector2
+) -> bool:
+	if not _setup_complete or not event.pressed:
+		return false
+	if _find_node_at(global_position) >= 0:
+		return false
+	_dismiss_text_input()
+	if event.double_tap or _is_manual_double_tap(global_position):
+		_last_empty_tap_time_ms = -1000
+		_cancel_active_canvas_gesture()
+		_show_context_menu(global_position)
+	else:
+		_begin_canvas_at(global_position, event.index)
+	return true
+
+
+func _dismiss_text_input() -> void:
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused != null:
+		focused.release_focus()
+	DisplayServer.virtual_keyboard_hide()
 
 
 func _is_manual_double_tap(position: Vector2) -> bool:
@@ -1124,11 +1188,11 @@ func _finish_touch_connection(global_position: Vector2) -> void:
 				start.slot
 			)
 		return
-	Grid._on_connection_with_empty(
-		start.node.name,
-		start.slot,
-		Grid.to_local(global_position),
-		start.outgoing
+	ContextMenu.call_deferred(
+		"show_up",
+		global_position,
+		Grid.offset_from_position(Grid.to_local(global_position)),
+		[start.node._node_id, start.slot, start.outgoing]
 	)
 
 

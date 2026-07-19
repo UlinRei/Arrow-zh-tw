@@ -39,7 +39,12 @@ func _on_resize(new_size: Vector2):
 	if new_size.y < 128 :
 		new_size.y = 128
 	# ...
-	var rect_array = Helpers.Utils.vector2_to_array(new_size)
+	var stored_size: Vector2 = (
+		Grid.view_to_document_vector(new_size)
+		if OS.has_feature("android")
+		else new_size
+	)
+	var rect_array = Helpers.Utils.vector2_to_array(stored_size)
 	_node_resource.data.rect = rect_array
 	_handle_collapse_and_size()
 	return rect_array
@@ -75,6 +80,8 @@ func _on_mouse_exited():
 
 func _handle_collapse_and_size(do_collapse: bool = CollapseToggle.is_pressed()) -> void:
 	var size_vector = Helpers.Utils.array_to_vector2(_node_resource.data.rect)
+	if OS.has_feature("android"):
+		size_vector = Grid.document_to_view_vector(size_vector)
 	if do_collapse:
 		self.set_deferred("resizable", false)
 		var shrink_fill = Vector2(size_vector.x, 0)

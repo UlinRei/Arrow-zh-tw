@@ -379,10 +379,13 @@ func _on_node_insert_selected_type_button_pressed() -> void:
 func insert_selected_nodes_from_list() -> void:
 	var items_indices = NodeInsertList.get_selected_items()
 	if items_indices.size() > 0 :
+		var stored_offset := _CLICK_POINT_OFFSET
+		if OS.has_feature("android"):
+			stored_offset = Grid.view_to_document_vector(stored_offset)
 		if _QUICK_INSERT_MODE:
 			_request_mind("quick_insert_node", {
 				"node": NodeInsertList.get_item_metadata(items_indices[0]).type,
-				"offset": _CLICK_POINT_OFFSET,
+				"offset": stored_offset,
 				"connection": _QUICK_INSERT_TARGET
 			}, true )
 		else:
@@ -390,11 +393,14 @@ func insert_selected_nodes_from_list() -> void:
 			for item_index in items_indices:
 				var item_type = NodeInsertList.get_item_metadata(item_index).type
 				item_types.push_back(item_type)
-			_request_mind("insert_node", { "nodes": item_types, "offset": _CLICK_POINT_OFFSET }, true )
+			_request_mind("insert_node", { "nodes": item_types, "offset": stored_offset }, true )
 	pass
 
 func request_clipboard_pull() -> void:
-	_request_mind("clipboard_pull", _CLICK_POINT_OFFSET, true)
+	var stored_offset := _CLICK_POINT_OFFSET
+	if OS.has_feature("android"):
+		stored_offset = Grid.view_to_document_vector(stored_offset)
+	_request_mind("clipboard_pull", stored_offset, true)
 	pass
 
 func _request_mind(req:String, args, hide_menu:bool = false) -> void:
