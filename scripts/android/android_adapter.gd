@@ -61,8 +61,6 @@ var _keyboard_movable_panel: Control
 var _keyboard_base_position := Vector2.ZERO
 
 var _touch_points: Dictionary = {}
-var _suppress_emulated_canvas_mouse := false
-var _mouse_canvas_fallback_active := false
 
 var _canvas_mode := CanvasMode.NONE
 var _canvas_touch_index := -1
@@ -93,7 +91,9 @@ var _pinch_start_zoom := 1.0
 var _pinch_anchor_graph_position := Vector2.ZERO
 var _app_menu_touch_index := -1
 var _inspector_toggle_touch_index := -1
-var _relayed_mouse_touches: Dictionary = {}
+var _control_touch_states: Dictionary = {}
+var _touch_connection: Dictionary = {}
+var _touch_connection_preview: Line2D
 
 
 func _enter_tree() -> void:
@@ -155,6 +155,13 @@ func _setup_android() -> void:
 	BottomPanel = get_node_or_null(
 		"/root/Main/Editor/Bottom"
 	) as Control
+	_install_touch_control_handlers(Main)
+	_touch_connection_preview = Line2D.new()
+	_touch_connection_preview.name = "AndroidConnectionPreview"
+	_touch_connection_preview.width = 4.0
+	_touch_connection_preview.default_color = Color(0.9, 0.9, 0.9, 0.9)
+	_touch_connection_preview.visible = false
+	Main.add_child(_touch_connection_preview)
 
 	DisplayServer.screen_set_orientation(
 		DisplayServer.SCREEN_SENSOR_LANDSCAPE
@@ -181,6 +188,101 @@ func _configure_optional_android_controls() -> void:
 		preferences_panel.anchor_bottom = 0.92
 		preferences_panel.offset_top = 0.0
 		preferences_panel.offset_bottom = 0.0
+
+
+func _install_touch_control_handlers(node: Node) -> void:
+	if not node.has_meta("android_touch_tree_handler"):
+		node.set_meta("android_touch_tree_handler", true)
+		node.child_entered_tree.connect(_install_touch_control_handlers)
+	if (
+		node is BaseButton
+		or node is LineEdit
+		or node is TextEdit
+		or node is ItemList
+		or node is TabBar
+		or node is HSlider
+		or node is VSlider
+	):
+		var control := node as Control
+		if not control.has_meta("android_touch_handler"):
+			control.set_meta("android_touch_handler", true)
+			control.gui_input.connect(
+				_on_native_control_touch.bind(control)
+			)
+	for child in node.get_children():
+		_install_touch_control_handlers(child)
+
+
+func _on_native_control_touch(event: InputEvent, control: Control) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_control_touch_states[control.get_instance_id()] = {
+				"index": event.index,
+				"origin": event.position,
+				"current": event.position,
+			}
+			if control is LineEdit or control is TextEdit:
+				control.grab_focus()
+				control.accept_event()
+		elif _control_touch_states.has(control.get_instance_id()):
+			var state: Dictionary = _control_touch_states[control.get_instance_id()]
+			_control_touch_states.erase(control.get_instance_id())
+			if state.index != event.index:
+				return
+			if (
+				state.origin.distance_to(event.position) <= TAP_MOVE_DISTANCE
+				and Rect2(Vector2.ZERO, control.size).has_point(event.position)
+			):
+				_activate_native_control(control, event.position)
+			control.accept_event()
+		return
+	if event is InputEventScreenDrag:
+		var state_key := control.get_instance_id()
+		if not _control_touch_states.has(state_key):
+			return
+		var state: Dictionary = _control_touch_states[state_key]
+		if state.index != event.index:
+			return
+		state.current = event.position
+		_control_touch_states[state_key] = state
+		if control is HSlider or control is VSlider:
+			_update_touch_slider(control as Range, event.position)
+			control.accept_event()
+
+
+func _activate_native_control(control: Control, local_position: Vector2) -> void:
+	if control is BaseButton:
+		var button := control as BaseButton
+		if button.disabled:
+			return
+		if button.toggle_mode:
+			button.set_pressed_no_signal(not button.button_pressed)
+			button.toggled.emit(button.button_pressed)
+		button.pressed.emit()
+	elif control is LineEdit or control is TextEdit:
+		control.grab_focus()
+	elif control is ItemList:
+		var item_list := control as ItemList
+		var item_index := item_list.get_item_at_position(local_position, true)
+		if item_index >= 0:
+			item_list.select(item_index)
+			item_list.item_selected.emit(item_index)
+	elif control is TabBar:
+		var tab_bar := control as TabBar
+		var tab_index := tab_bar.get_tab_idx_at_point(local_position)
+		if tab_index >= 0 and not tab_bar.is_tab_disabled(tab_index):
+			tab_bar.current_tab = tab_index
+	elif control is HSlider or control is VSlider:
+		_update_touch_slider(control as Range, local_position)
+
+
+func _update_touch_slider(slider: Range, local_position: Vector2) -> void:
+	var ratio := 0.0
+	if slider is VSlider:
+		ratio = 1.0 - clampf(local_position.y / maxf(slider.size.y, 1.0), 0.0, 1.0)
+	else:
+		ratio = clampf(local_position.x / maxf(slider.size.x, 1.0), 0.0, 1.0)
+	slider.value = lerpf(slider.min_value, slider.max_value, ratio)
 
 	var path_dialog := get_node_or_null(
 		"/root/Main/Overlays/Control/PathDialog"
@@ -488,64 +590,6 @@ func handle_raw_touch_input(event: InputEvent) -> void:
 		_handle_magnify_gesture(event)
 
 
-func handle_grid_mouse_input(event: InputEvent) -> bool:
-	var global_position = null
-	if event is InputEventMouseButton or event is InputEventMouseMotion:
-		global_position = Grid.to_global(event.position)
-	return _handle_emulated_canvas_mouse(event, true, global_position)
-
-
-func _handle_emulated_canvas_mouse(
-	event: InputEvent,
-	from_grid_gui: bool,
-	explicit_global_position = null
-) -> bool:
-	var mouse_position := Vector2.ZERO
-	if explicit_global_position is Vector2:
-		mouse_position = explicit_global_position
-	elif event is InputEventMouseButton:
-		mouse_position = event.position
-	elif event is InputEventMouseMotion:
-		mouse_position = event.position
-
-	if _suppress_emulated_canvas_mouse:
-		if Grid.get_global_rect().has_point(mouse_position):
-			get_viewport().set_input_as_handled()
-		if event is InputEventMouseButton and not event.pressed:
-			_suppress_emulated_canvas_mouse = false
-		return true
-
-	if not from_grid_gui:
-		return false
-
-	if event is InputEventMouseButton:
-		if event.button_index != MOUSE_BUTTON_LEFT:
-			return false
-		if event.pressed:
-			if not _is_empty_canvas_point(mouse_position):
-				return false
-			if event.double_click:
-				_cancel_active_canvas_gesture()
-				_show_context_menu(mouse_position)
-				get_viewport().set_input_as_handled()
-				return true
-			_mouse_canvas_fallback_active = true
-			_begin_canvas_at(mouse_position, -2)
-		else:
-			if not _mouse_canvas_fallback_active:
-				return false
-			_finish_canvas_touch(mouse_position)
-			_mouse_canvas_fallback_active = false
-		get_viewport().set_input_as_handled()
-		return true
-
-	if event is InputEventMouseMotion and _mouse_canvas_fallback_active:
-		_update_canvas_drag(mouse_position)
-		get_viewport().set_input_as_handled()
-		return true
-	return false
-
-
 func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 	if (
 		AndroidContextOverlay != null
@@ -558,26 +602,14 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 		):
 			AndroidContextOverlay.hide()
 			_touch_points.erase(event.index)
-			_suppress_emulated_canvas_mouse = true
 			_cancel_active_canvas_gesture()
 			get_viewport().set_input_as_handled()
 			return
 		if not event.pressed:
 			_touch_points.erase(event.index)
-			_suppress_emulated_canvas_mouse = false
 			_cancel_active_canvas_gesture()
 		return
 	if _handle_android_menu_touch(event):
-		get_viewport().set_input_as_handled()
-		return
-	if event.pressed and _should_relay_touch_as_mouse(event.position):
-		_relay_touch_button(event, true)
-		_relayed_mouse_touches[event.index] = event.position
-		get_viewport().set_input_as_handled()
-		return
-	if not event.pressed and _relayed_mouse_touches.has(event.index):
-		_relay_touch_button(event, false)
-		_relayed_mouse_touches.erase(event.index)
 		get_viewport().set_input_as_handled()
 		return
 
@@ -586,6 +618,12 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 
 		if _touch_points.size() == 2 and _touch_pair_is_on_grid():
 			_begin_pinch()
+			get_viewport().set_input_as_handled()
+			return
+
+		var touched_port := _find_port_at(event.position)
+		if not touched_port.is_empty():
+			_begin_touch_connection(event, touched_port)
 			get_viewport().set_input_as_handled()
 			return
 
@@ -612,7 +650,6 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 			if event.double_tap or _is_manual_double_tap(event.position):
 				_last_empty_tap_time_ms = -1000
 				_cancel_active_canvas_gesture()
-				_suppress_emulated_canvas_mouse = true
 				_show_context_menu(event.position)
 				get_viewport().set_input_as_handled()
 				return
@@ -622,8 +659,13 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 
 	else:
 		_touch_points.erase(event.index)
-		if _touch_points.is_empty():
-			_suppress_emulated_canvas_mouse = false
+		if (
+			not _touch_connection.is_empty()
+			and _touch_connection.index == event.index
+		):
+			_finish_touch_connection(event.position)
+			get_viewport().set_input_as_handled()
+			return
 
 		if _canvas_mode == CanvasMode.PINCH:
 			if _touch_points.size() < 2:
@@ -689,12 +731,14 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 		and AndroidContextOverlay.is_visible_in_tree()
 	):
 		return
-	if _relayed_mouse_touches.has(event.index):
-		_relay_touch_motion(event)
-		_relayed_mouse_touches[event.index] = event.position
+	_touch_points[event.index] = event.position
+	if (
+		not _touch_connection.is_empty()
+		and _touch_connection.index == event.index
+	):
+		_touch_connection_preview.set_point_position(1, event.position)
 		get_viewport().set_input_as_handled()
 		return
-	_touch_points[event.index] = event.position
 
 	if _canvas_mode == CanvasMode.PINCH:
 		_update_pinch()
@@ -749,7 +793,6 @@ func _handle_pan_gesture(event: InputEventPanGesture) -> void:
 	# drag events are not emitted. Move the graph opposite the finger delta so
 	# the canvas visually follows the gesture.
 	_cancel_active_canvas_gesture()
-	_suppress_emulated_canvas_mouse = true
 	Grid.set_scroll_offset(Grid.get_scroll_offset() + event.delta)
 	get_viewport().set_input_as_handled()
 
@@ -784,7 +827,6 @@ func _cancel_active_canvas_gesture() -> void:
 
 
 func _begin_canvas_touch(event: InputEventScreenTouch) -> void:
-	_suppress_emulated_canvas_mouse = true
 	_begin_canvas_at(event.position, event.index)
 
 
@@ -795,19 +837,6 @@ func _begin_canvas_at(position: Vector2, input_index: int) -> void:
 	_canvas_current = position
 	_canvas_start_scroll = Grid.get_scroll_offset()
 	_canvas_elapsed = 0.0
-
-
-func _update_canvas_drag(position: Vector2) -> void:
-	_canvas_current = position
-	if (
-		_canvas_mode == CanvasMode.PENDING
-		and _canvas_origin.distance_to(position) > TAP_MOVE_DISTANCE
-	):
-		_canvas_mode = CanvasMode.PAN
-	if _canvas_mode == CanvasMode.PAN:
-		Grid.set_scroll_offset(
-			_canvas_start_scroll - (position - _canvas_origin)
-		)
 
 
 func _finish_canvas_touch(release_position: Vector2) -> void:
@@ -938,7 +967,6 @@ func _begin_pinch() -> void:
 		return
 
 	_cancel_node_hold()
-	_suppress_emulated_canvas_mouse = true
 	_canvas_mode = CanvasMode.PINCH
 
 	var first: Vector2 = points[0]
@@ -1035,67 +1063,73 @@ func _find_node_at(global_position: Vector2) -> int:
 	return -1
 
 
-func _should_relay_touch_as_mouse(global_position: Vector2) -> bool:
-	if (
-		InspectorPanel != null
-		and InspectorPanel.is_visible_in_tree()
-		and InspectorPanel.get_global_rect().has_point(global_position)
-	):
-		return true
-	if (
-		BottomPanel != null
-		and BottomPanel.is_visible_in_tree()
-		and BottomPanel.get_global_rect().has_point(global_position)
-	):
-		return true
-	if not Grid.get_global_rect().has_point(global_position):
-		return true
-	if Grid.to_local(global_position).y < 42.0:
-		return true
-	return _is_node_port_point(global_position)
-
-
-func _is_node_port_point(global_position: Vector2) -> bool:
+func _find_port_at(global_position: Vector2, outgoing = null) -> Dictionary:
 	const PORT_TOUCH_RADIUS := 36.0
 	for node_id in Grid._DRAWN_NODES_BY_ID:
 		var graph_node := Grid._DRAWN_NODES_BY_ID[node_id] as GraphNode
 		if graph_node == null:
 			continue
 		var node_origin := graph_node.get_global_rect().position
-		for port_index in graph_node.get_input_port_count():
-			if global_position.distance_to(
-				node_origin + graph_node.get_input_port_position(port_index)
-			) <= PORT_TOUCH_RADIUS:
-				return true
-		for port_index in graph_node.get_output_port_count():
-			if global_position.distance_to(
-				node_origin + graph_node.get_output_port_position(port_index)
-			) <= PORT_TOUCH_RADIUS:
-				return true
-	return false
+		if outgoing == null or outgoing == false:
+			for input_index in graph_node.get_input_port_count():
+				var input_position := node_origin + graph_node.get_input_port_position(input_index)
+				if global_position.distance_to(input_position) <= PORT_TOUCH_RADIUS:
+					return {
+						"node": graph_node,
+						"slot": input_index,
+						"outgoing": false,
+						"position": input_position,
+					}
+		if outgoing == null or outgoing == true:
+			for output_index in graph_node.get_output_port_count():
+				var output_position := node_origin + graph_node.get_output_port_position(output_index)
+				if global_position.distance_to(output_position) <= PORT_TOUCH_RADIUS:
+					return {
+						"node": graph_node,
+						"slot": output_index,
+						"outgoing": true,
+						"position": output_position,
+					}
+	return {}
 
 
-func _relay_touch_button(event: InputEventScreenTouch, pressed: bool) -> void:
-	var mouse_event := InputEventMouseButton.new()
-	mouse_event.device = InputEvent.DEVICE_ID_EMULATION
-	mouse_event.position = event.position
-	mouse_event.global_position = event.position
-	mouse_event.button_index = MOUSE_BUTTON_LEFT
-	mouse_event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
-	mouse_event.pressed = pressed
-	mouse_event.double_click = event.double_tap
-	Input.parse_input_event(mouse_event)
+func _begin_touch_connection(event: InputEventScreenTouch, port: Dictionary) -> void:
+	_touch_connection = port.duplicate()
+	_touch_connection.index = event.index
+	_touch_connection_preview.clear_points()
+	_touch_connection_preview.add_point(port.position)
+	_touch_connection_preview.add_point(event.position)
+	_touch_connection_preview.visible = true
 
 
-func _relay_touch_motion(event: InputEventScreenDrag) -> void:
-	var mouse_event := InputEventMouseMotion.new()
-	mouse_event.device = InputEvent.DEVICE_ID_EMULATION
-	mouse_event.position = event.position
-	mouse_event.global_position = event.position
-	mouse_event.relative = event.relative
-	mouse_event.velocity = event.velocity
-	mouse_event.button_mask = MOUSE_BUTTON_MASK_LEFT
-	Input.parse_input_event(mouse_event)
+func _finish_touch_connection(global_position: Vector2) -> void:
+	var start := _touch_connection
+	var target := _find_port_at(global_position, not start.outgoing)
+	_touch_connection = {}
+	_touch_connection_preview.visible = false
+	_touch_connection_preview.clear_points()
+	if not target.is_empty():
+		if start.outgoing:
+			Grid._on_connection_request(
+				start.node.name,
+				start.slot,
+				target.node.name,
+				target.slot
+			)
+		else:
+			Grid._on_connection_request(
+				target.node.name,
+				target.slot,
+				start.node.name,
+				start.slot
+			)
+		return
+	Grid._on_connection_with_empty(
+		start.node.name,
+		start.slot,
+		Grid.to_local(global_position),
+		start.outgoing
+	)
 
 
 func _show_context_menu(global_position: Vector2) -> void:
