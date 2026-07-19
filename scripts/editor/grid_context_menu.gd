@@ -41,7 +41,6 @@ var _android_list_touch_origin := Vector2.ZERO
 var _android_list_last_position := Vector2.ZERO
 var _android_list_velocity := 0.0
 var _android_list_dragging := false
-var _android_suppress_mouse_until_ms := -1000
 var _android_setup_complete := false
 
 func _ready() -> void:
@@ -85,7 +84,6 @@ func _setup_android_context_menu() -> void:
 	if popup_style != null:
 		_ANDROID_PANEL.add_theme_stylebox_override("panel", popup_style)
 	NodeInsertList.gui_input.connect(_on_android_list_gui_input)
-	set_process_input(true)
 	set_process(true)
 	_configure_android_list_scrollbar.call_deferred()
 	if shield != null:
@@ -103,20 +101,6 @@ func _configure_android_list_scrollbar() -> void:
 		scroll_bar.modulate.a = 0.0
 
 
-func _input(event: InputEvent) -> void:
-	if (
-		not OS.has_feature("android")
-		or _ANDROID_OVERLAY == null
-		or not _ANDROID_OVERLAY.visible
-	):
-		return
-	if (
-		event is InputEventMouseButton
-		and Time.get_ticks_msec() <= _android_suppress_mouse_until_ms
-	):
-		get_viewport().set_input_as_handled()
-
-
 func _on_android_list_gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed:
@@ -127,7 +111,6 @@ func _on_android_list_gui_input(event: InputEvent) -> void:
 			_android_list_dragging = false
 		elif event.index == _android_list_touch_index:
 			if _android_list_dragging:
-				_android_suppress_mouse_until_ms = Time.get_ticks_msec() + 180
 				NodeInsertList.accept_event()
 			_android_list_touch_index = -1
 		return
@@ -247,26 +230,9 @@ func _on_about_to_popup() -> void:
 	# and their icons/previews available every time the menu opens.
 	try_cache_node_type_list_from_mind(true)
 	reset_quick_edit_buttons()
-	if OS.has_feature("android"):
-		NodeInsertList.custom_minimum_size = Vector2(360, 240)
-		_refresh_android_node_type_list.call_deferred()
-		call_deferred("_fit_android_popup_to_viewport")
 	NodeInsertList.grab_focus.call_deferred()
 	NodeInsertList.ensure_current_is_visible.call_deferred()
 	pass
-
-func _refresh_android_node_type_list() -> void:
-	# The Android scene can display this popup before the mind has finished
-	# publishing its node registry. Retry for a few rendered frames instead of
-	# leaving a permanently empty ItemList.
-	for attempt in range(8):
-		if Main.Mind && Main.Mind.NODE_TYPES_LIST.size() > 0:
-			_NODE_INSERT_LIST_FULL = Main.Mind.NODE_TYPES_LIST.duplicate(true)
-			filter_node_insert_list_items_view()
-			_fit_android_popup_to_viewport.call_deferred()
-			return
-		await get_tree().process_frame
-
 
 func _on_android_shield_gui_input(event: InputEvent) -> void:
 	# Raw Android touch outside the panel closes the overlay. Ignoring the
@@ -287,17 +253,6 @@ func _on_window_input(event: InputEvent) -> void:
 				Grid._on_popup_request()
 	pass
 
-
-func _fit_android_popup_to_viewport() -> void:
-	if not OS.has_feature("android"):
-		return
-
-	var viewport_size := get_viewport().get_visible_rect().size
-	var fitted_size := Vector2i(
-		mini(maxi(size.x, 320), int(viewport_size.x * 0.62)),
-		mini(maxi(size.y, 300), int(viewport_size.y * 0.78))
-	)
-	size = fitted_size
 
 	position = Vector2i(
 		clampi(position.x, 0, maxi(0, int(viewport_size.x) - size.x)),
