@@ -72,13 +72,11 @@ func _setup_android_context_menu() -> void:
 	):
 		push_error("Android context menu scene controls are missing.")
 		return
-	# Move the complete original menu as one unit. Moving only Node and Tools
-	# detached their layout root from the PopupPanel and left the ItemList drawn
-	# at the old upper-left window coordinates on Android.
-	MenuBox.reparent(_ANDROID_CONTENT, false)
-	MenuBox.position = Vector2.ZERO
-	MenuBox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	MenuBox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Reuse the actual desktop controls so mouse and keyboard selection semantics
+	# (including Ctrl toggle and Shift range selection) stay exactly identical.
+	var node_panel := NodeInsertList.get_parent().get_parent() as PanelContainer
+	node_panel.reparent(_ANDROID_CONTENT, false)
+	EditToolBox.reparent(_ANDROID_CONTENT, false)
 	NodeInsertList.custom_minimum_size = Vector2.ZERO
 	NodeInsertList.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var popup_style := get_theme_stylebox("panel", "PopupPanel")
@@ -223,12 +221,7 @@ func _position_android_overlay() -> void:
 	desired_size = desired_size.min(viewport_size - Vector2.ONE * 32.0)
 	_ANDROID_PANEL.custom_minimum_size = desired_size
 	_ANDROID_PANEL.size = desired_size
-	# Open where the finger was released, while keeping the complete original
-	# menu reachable near the right and bottom screen edges.
-	_ANDROID_PANEL.position = Vector2(
-		clampf(_CLICK_POINT_POSITION.x, 16.0, viewport_size.x - desired_size.x - 16.0),
-		clampf(_CLICK_POINT_POSITION.y, 16.0, viewport_size.y - desired_size.y - 16.0)
-	)
+	_ANDROID_PANEL.position = (viewport_size - desired_size) * 0.5
 
 
 func _refresh_android_overlay() -> void:
