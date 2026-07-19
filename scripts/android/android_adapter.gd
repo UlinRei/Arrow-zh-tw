@@ -90,12 +90,17 @@ var _node_start_size := Vector2.ZERO
 var _pinch_start_distance := 1.0
 var _pinch_start_zoom := 1.0
 var _pinch_anchor_graph_position := Vector2.ZERO
+var _pinch_update_pending := false
 var _app_menu_touch_index := -1
 var _inspector_toggle_touch_index := -1
 var _control_touch_states: Dictionary = {}
 var _touch_connection: Dictionary = {}
 var _touch_connection_preview: Line2D
 var _inspector_hidden_for_query := false
+var _query_inspector_was_visible := false
+var _query_focus_active := false
+var _keyboard_was_visible := false
+var _popup_touch_states: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -288,10 +293,12 @@ func _activate_native_control(control: Control, local_position: Vector2) -> void
 	if control is OptionButton:
 		var option_button := control as OptionButton
 		if not option_button.disabled:
+			_prepare_touch_popup(option_button.get_popup())
 			option_button.show_popup()
 	elif control is MenuButton:
 		var menu_button := control as MenuButton
 		if not menu_button.disabled:
+			_prepare_touch_popup(menu_button.get_popup())
 			menu_button.show_popup()
 	elif control is BaseButton:
 		var button := control as BaseButton
@@ -327,16 +334,60 @@ func _update_touch_slider(slider: Range, local_position: Vector2) -> void:
 	slider.value = lerpf(slider.min_value, slider.max_value, ratio)
 
 
+func _prepare_touch_popup(popup: PopupMenu) -> void:
+	if popup.has_meta("android_touch_popup"):
+		return
+	popup.set_meta("android_touch_popup", true)
+	popup.window_input.connect(_on_popup_touch.bind(popup))
+
+
+func _on_popup_touch(event: InputEvent, popup: PopupMenu) -> void:
+	if not event is InputEventScreenTouch:
+		return
+	if event.pressed:
+		_popup_touch_states[popup.get_instance_id()] = event.index
+		return
+	if _popup_touch_states.get(popup.get_instance_id(), -1) != event.index:
+		return
+	_popup_touch_states.erase(popup.get_instance_id())
+	var item_count := popup.get_item_count()
+	if item_count <= 0 or popup.size.y <= 0:
+		popup.hide()
+		return
+	var item_index := clampi(
+		int(floor(event.position.y / (float(popup.size.y) / item_count))),
+		0,
+		item_count - 1
+	)
+	if popup.is_item_disabled(item_index) or popup.is_item_separator(item_index):
+		return
+	popup.index_pressed.emit(item_index)
+	popup.id_pressed.emit(popup.get_item_id(item_index))
+	popup.hide()
+
+
 func _on_query_focus_entered() -> void:
-	if InspectorPanel != null and InspectorPanel.is_visible_in_tree():
-		_inspector_hidden_for_query = true
+	if _query_focus_active:
+		return
+	_query_focus_active = true
+	_query_inspector_was_visible = (
+		InspectorPanel != null and InspectorPanel.is_visible_in_tree()
+	)
+	_inspector_hidden_for_query = _query_inspector_was_visible
+	if _inspector_hidden_for_query:
 		Main.UI.set_panel_visibility("inspector", false)
 
 
 func _on_query_focus_exited() -> void:
-	if _inspector_hidden_for_query:
-		_inspector_hidden_for_query = false
-		Main.UI.set_panel_visibility("inspector", true)
+	if not _query_focus_active:
+		return
+	_query_focus_active = false
+	if InspectorPanel != null:
+		Main.UI.set_panel_visibility(
+			"inspector",
+			_query_inspector_was_visible
+		)
+	_inspector_hidden_for_query = false
 
 func _apply_android_ui_scale() -> void:
 	var dpi := float(DisplayServer.screen_get_dpi())
@@ -684,6 +735,11 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 			get_viewport().set_input_as_handled()
 			return
 
+		if _is_direct_canvas_point(event.position):
+			handle_grid_touch_press(event, event.position)
+			get_viewport().set_input_as_handled()
+			return
+
 	else:
 		_touch_points.erase(event.index)
 		if (
@@ -779,7 +835,7 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 		return
 
 	if _canvas_mode == CanvasMode.PINCH:
-		_update_pinch()
+		_pinch_update_pending = true
 		get_viewport().set_input_as_handled()
 		return
 
@@ -1042,6 +1098,7 @@ func _begin_pinch() -> void:
 	_pinch_anchor_graph_position = (
 		Grid.get_scroll_offset() + Grid.to_local(midpoint)
 	) / _pinch_start_zoom
+	_pinch_update_pending = true
 
 
 func _update_pinch() -> void:
@@ -1071,6 +1128,7 @@ func _finish_pinch() -> void:
 	_canvas_mode = CanvasMode.NONE
 	_canvas_touch_index = -1
 	_pinch_start_distance = 1.0
+	_pinch_update_pending = false
 
 
 func _get_touch_pair() -> Array[Vector2]:
@@ -1114,6 +1172,20 @@ func _is_empty_canvas_point(global_position: Vector2) -> bool:
 	return true
 
 
+func _is_direct_canvas_point(global_position: Vector2) -> bool:
+	if not Grid.get_global_rect().has_point(global_position):
+		return false
+	if Grid.to_local(global_position).y < 42.0:
+		return false
+	if (
+		MiniMapBox != null
+		and MiniMapBox.is_visible_in_tree()
+		and MiniMapBox.get_global_rect().has_point(global_position)
+	):
+		return false
+	return true
+
+
 func _find_node_at(global_position: Vector2) -> int:
 	for node_id in Grid._DRAWN_NODES_BY_ID:
 		var node = Grid._DRAWN_NODES_BY_ID[node_id]
@@ -1133,10 +1205,12 @@ func _find_port_at(global_position: Vector2, outgoing = null) -> Dictionary:
 		var graph_node := Grid._DRAWN_NODES_BY_ID[node_id] as GraphNode
 		if graph_node == null:
 			continue
-		var node_origin := graph_node.get_global_rect().position
 		if outgoing == null or outgoing == false:
 			for input_index in graph_node.get_input_port_count():
-				var input_position := node_origin + graph_node.get_input_port_position(input_index)
+				var input_position := (
+					graph_node.get_global_transform_with_canvas()
+					* graph_node.get_input_port_position(input_index)
+				)
 				if global_position.distance_to(input_position) <= PORT_TOUCH_RADIUS:
 					return {
 						"node": graph_node,
@@ -1146,7 +1220,10 @@ func _find_port_at(global_position: Vector2, outgoing = null) -> Dictionary:
 					}
 		if outgoing == null or outgoing == true:
 			for output_index in graph_node.get_output_port_count():
-				var output_position := node_origin + graph_node.get_output_port_position(output_index)
+				var output_position := (
+					graph_node.get_global_transform_with_canvas()
+					* graph_node.get_output_port_position(output_index)
+				)
 				if global_position.distance_to(output_position) <= PORT_TOUCH_RADIUS:
 					return {
 						"node": graph_node,
@@ -1188,7 +1265,7 @@ func _finish_touch_connection(global_position: Vector2) -> void:
 				start.slot
 			)
 		return
-	ContextMenu.call_deferred(
+	ContextMenu.call(
 		"show_up",
 		global_position,
 		Grid.offset_from_position(Grid.to_local(global_position)),
@@ -1215,6 +1292,9 @@ func _clear_selection() -> void:
 func _process(delta: float) -> void:
 	if not _setup_complete:
 		return
+	if _pinch_update_pending and _canvas_mode == CanvasMode.PINCH:
+		_pinch_update_pending = false
+		_update_pinch()
 
 	if _canvas_mode == CanvasMode.PENDING:
 		_canvas_elapsed += delta
@@ -1241,6 +1321,14 @@ func _process(delta: float) -> void:
 func _update_keyboard_avoidance(delta: float) -> void:
 	var keyboard_visible := DisplayServer.virtual_keyboard_get_height() > 0
 	var focused := get_viewport().gui_get_focus_owner() as Control
+	if (
+		_keyboard_was_visible
+		and not keyboard_visible
+		and (focused is LineEdit or focused is TextEdit)
+	):
+		focused.release_focus()
+		focused = null
+	_keyboard_was_visible = keyboard_visible
 	var focused_panel := _keyboard_panel_for(focused)
 
 	if (
