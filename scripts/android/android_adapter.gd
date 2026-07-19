@@ -91,6 +91,7 @@ var _pinch_start_distance := 1.0
 var _pinch_start_zoom := 1.0
 var _pinch_anchor_graph_position := Vector2.ZERO
 var _pinch_update_pending := false
+var _pinch_pan_accumulator := Vector2.ZERO
 var _app_menu_touch_index := -1
 var _inspector_toggle_touch_index := -1
 var _control_touch_states: Dictionary = {}
@@ -248,7 +249,7 @@ func _install_touch_control_handlers(node: Node) -> void:
 			control.gui_input.connect(
 				_on_native_control_touch.bind(control)
 			)
-	for child in node.get_children():
+	for child in node.get_children(true):
 		_install_touch_control_handlers(child)
 
 
@@ -879,8 +880,8 @@ func _handle_pan_gesture(event: InputEventPanGesture) -> void:
 	if not Grid.get_global_rect().has_point(event.position):
 		return
 	if _touch_points.size() >= 2:
-		# Raw ScreenDrag updates both finger positions and owns pinch calculations.
-		# Consuming the derived gesture avoids applying the same movement twice.
+		_pinch_pan_accumulator += event.delta
+		_pinch_update_pending = true
 		get_viewport().set_input_as_handled()
 		return
 	# Android reports two-finger navigation as PanGesture even when raw touch
@@ -1098,6 +1099,7 @@ func _begin_pinch() -> void:
 	_pinch_anchor_graph_position = (
 		Grid.get_scroll_offset() + Grid.to_local(midpoint)
 	) / _pinch_start_zoom
+	_pinch_pan_accumulator = Vector2.ZERO
 	_pinch_update_pending = true
 
 
@@ -1121,6 +1123,7 @@ func _update_pinch() -> void:
 	Grid.set_scroll_offset(
 		_pinch_anchor_graph_position * new_zoom
 		- Grid.to_local(midpoint)
+		+ _pinch_pan_accumulator
 	)
 
 
@@ -1129,6 +1132,7 @@ func _finish_pinch() -> void:
 	_canvas_touch_index = -1
 	_pinch_start_distance = 1.0
 	_pinch_update_pending = false
+	_pinch_pan_accumulator = Vector2.ZERO
 
 
 func _get_touch_pair() -> Array[Vector2]:
@@ -1265,8 +1269,7 @@ func _finish_touch_connection(global_position: Vector2) -> void:
 				start.slot
 			)
 		return
-	ContextMenu.call(
-		"show_up",
+	ContextMenu.show_up(
 		global_position,
 		Grid.offset_from_position(Grid.to_local(global_position)),
 		[start.node._node_id, start.slot, start.outgoing]
