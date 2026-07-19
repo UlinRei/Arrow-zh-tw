@@ -101,8 +101,8 @@ var _touch_connection_preview: Line2D
 var _inspector_hidden_for_query := false
 var _query_inspector_was_visible := false
 var _query_focus_active := false
+var _keyboard_was_visible := false
 var _popup_touch_states: Dictionary = {}
-var _pending_context_menu: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -139,8 +139,6 @@ func _setup_android() -> void:
 	AndroidContextPanel = get_node_or_null(
 		"/root/Main/Overlays/Control/AndroidContext/Center/Menu"
 	) as Control
-	if AndroidContextOverlay != null:
-		AndroidContextOverlay.z_index = 100
 	MiniMapBox = get_node_or_null(
 		"/root/Main/Editor/Center/MiniMap"
 	) as Control
@@ -274,14 +272,11 @@ func _on_native_control_touch(event: InputEvent, control: Control) -> void:
 			control.accept_event()
 			if control is LineEdit or control is TextEdit:
 				control.grab_focus()
-				if control is LineEdit:
-					(control as LineEdit).edit()
 				_place_text_caret(
 					control,
 					control.get_global_transform_with_canvas().affine_inverse()
 						* event.position
 				)
-				_show_virtual_keyboard_for(control)
 		elif _control_touch_states.has(control.get_instance_id()):
 			var state: Dictionary = _control_touch_states[control.get_instance_id()]
 			_control_touch_states.erase(control.get_instance_id())
@@ -359,49 +354,6 @@ func _place_text_caret(control: Control, local_position: Vector2) -> void:
 		text_edit.set_caret_column(line_column.x)
 
 
-func _show_virtual_keyboard_for(control: Control) -> void:
-	if not (control is LineEdit or control is TextEdit):
-		return
-	var cursor_start := 0
-	var cursor_end := 0
-	var max_length := -1
-	var keyboard_type := DisplayServer.KEYBOARD_TYPE_DEFAULT
-	if control is LineEdit:
-		var line_edit := control as LineEdit
-		cursor_start = line_edit.get_selection_from_column() if line_edit.has_selection() else line_edit.caret_column
-		cursor_end = line_edit.get_selection_to_column() if line_edit.has_selection() else line_edit.caret_column
-		max_length = line_edit.max_length
-		keyboard_type = line_edit.virtual_keyboard_type
-	else:
-		var text_edit := control as TextEdit
-		cursor_start = _text_edit_absolute_caret(
-			text_edit,
-			text_edit.get_selection_from_line() if text_edit.has_selection() else text_edit.get_caret_line(),
-			text_edit.get_selection_from_column() if text_edit.has_selection() else text_edit.get_caret_column()
-		)
-		cursor_end = _text_edit_absolute_caret(
-			text_edit,
-			text_edit.get_selection_to_line() if text_edit.has_selection() else text_edit.get_caret_line(),
-			text_edit.get_selection_to_column() if text_edit.has_selection() else text_edit.get_caret_column()
-		)
-		keyboard_type = text_edit.virtual_keyboard_type
-	DisplayServer.virtual_keyboard_show(
-		control.text,
-		control.get_global_rect(),
-		keyboard_type,
-		max_length,
-		cursor_start,
-		cursor_end
-	)
-
-
-func _text_edit_absolute_caret(text_edit: TextEdit, line: int, column: int) -> int:
-	var absolute := column
-	for line_index in line:
-		absolute += text_edit.get_line(line_index).length() + 1
-	return absolute
-
-
 func _update_touch_slider(slider: Range, local_position: Vector2) -> void:
 	var ratio := 0.0
 	if slider is VSlider:
@@ -434,9 +386,7 @@ func _on_popup_touch(event: InputEvent, popup: PopupMenu) -> void:
 	if _popup_touch_states.get(popup.get_instance_id(), -1) != event.index:
 		return
 	_popup_touch_states.erase(popup.get_instance_id())
-	var item_index := popup.get_focused_item()
-	if item_index < 0:
-		item_index = _popup_item_at_position(popup, event.position)
+	var item_index := _popup_item_at_position(popup, event.position)
 	if item_index < 0:
 		popup.set_focused_item(-1)
 		popup.hide()
@@ -770,11 +720,7 @@ func handle_raw_touch_input(event: InputEvent) -> void:
 		event is InputEventKey
 		and event.pressed
 		and not event.echo
-		and (
-			event.keycode == KEY_BACKSPACE
-			or event.physical_keycode == KEY_BACKSPACE
-			or event.unicode == 8
-		)
+		and event.keycode == KEY_BACKSPACE
 	):
 		_schedule_android_backspace_fallback()
 
@@ -1390,7 +1336,7 @@ func _finish_touch_connection(global_position: Vector2) -> void:
 				start.slot
 			)
 		return
-	_queue_android_context_menu(
+	_open_android_context_menu.call_deferred(
 		global_position,
 		Grid.offset_from_position(Grid.to_local(global_position)),
 		[start.node._node_id, start.slot, start.outgoing]
@@ -1401,23 +1347,25 @@ func _show_context_menu(global_position: Vector2) -> void:
 	if ContextMenu == null or Grid == null:
 		return
 
-	_queue_android_context_menu(
+	_open_android_context_menu.call_deferred(
 		global_position,
 		Grid.offset_from_position(Grid.to_local(global_position))
 	)
 
 
-func _queue_android_context_menu(
+func _open_android_context_menu(
 	global_position: Vector2,
 	document_offset: Vector2,
 	quick_insertion = null
 ) -> void:
-	_pending_context_menu = {
-		"position": global_position,
-		"offset": document_offset,
-		"quick": quick_insertion,
-		"frame": Engine.get_process_frames() + 2,
-	}
+	if ContextMenu == null or AndroidContextOverlay == null:
+		return
+	ContextMenu.show_up(global_position, document_offset, quick_insertion)
+	await get_tree().process_frame
+	# Showing once more after the release has fully propagated prevents the same
+	# touch sequence from closing the overlay immediately.
+	AndroidContextOverlay.show()
+	ContextMenu.call("_position_android_overlay")
 
 
 func _clear_selection() -> void:
@@ -1428,15 +1376,6 @@ func _clear_selection() -> void:
 func _process(delta: float) -> void:
 	if not _setup_complete:
 		return
-	if (
-		not _pending_context_menu.is_empty()
-		and Engine.get_process_frames() >= int(_pending_context_menu.frame)
-	):
-		var request := _pending_context_menu
-		_pending_context_menu = {}
-		ContextMenu.show_up(request.position, request.offset, request.quick)
-		AndroidContextOverlay.show()
-		ContextMenu.call("_position_android_overlay")
 	if _pinch_update_pending and _canvas_mode == CanvasMode.PINCH:
 		_pinch_update_pending = false
 		_update_pinch()
@@ -1485,12 +1424,19 @@ func _update_text_control_long_press() -> void:
 			continue
 		state.long_pressed = true
 		_control_touch_states[instance_id] = state
-		_show_virtual_keyboard_for(control)
 
 
 func _update_keyboard_avoidance(delta: float) -> void:
 	var keyboard_visible := DisplayServer.virtual_keyboard_get_height() > 0
 	var focused := get_viewport().gui_get_focus_owner() as Control
+	if (
+		_keyboard_was_visible
+		and not keyboard_visible
+		and (focused is LineEdit or focused is TextEdit)
+	):
+		focused.release_focus()
+		focused = null
+	_keyboard_was_visible = keyboard_visible
 	var focused_panel := _keyboard_panel_for(focused)
 
 	if (
