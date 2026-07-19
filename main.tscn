@@ -29,6 +29,7 @@
 [ext_resource type="Script" uid="uid://bahvfetu2v2m8" path="res://scripts/editor/minimap.gd" id="26_g6oda"]
 [ext_resource type="Script" uid="uid://le3w7a81gfye" path="res://scripts/editor/query.gd" id="27_oamwo"]
 [ext_resource type="Script" uid="uid://c14jytxi60272" path="res://scripts/editor/quick_preferences.gd" id="28_jwiiu"]
+[ext_resource type="Script" path="res://scripts/android/android_adapter.gd" id="29_android"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_6unog"]
 atlas = ExtResource("7_0tmvq")
@@ -158,6 +159,9 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("1_nah4y")
 script = ExtResource("2_nfnrg")
+
+[node name="AndroidAdapter" type="Node" parent="."]
+script = ExtResource("29_android")
 
 [node name="Overlays" type="CanvasLayer" parent="." unique_id=1996519012]
 layer = 2
@@ -786,6 +790,52 @@ layout_mode = 2
 layout_mode = 2
 text = "[Action(s)]"
 
+[node name="AndroidContext" type="Control" parent="Overlays/Control"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="Shield" type="ColorRect" parent="Overlays/Control/AndroidContext"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.18)
+
+[node name="Center" type="CenterContainer" parent="Overlays/Control/AndroidContext"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Menu" type="PanelContainer" parent="Overlays/Control/AndroidContext/Center"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 0
+clip_contents = true
+
+[node name="Margin" type="MarginContainer" parent="Overlays/Control/AndroidContext/Center/Menu"]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="Content" type="VBoxContainer" parent="Overlays/Control/AndroidContext/Center/Menu/Margin"]
+layout_mode = 2
+theme_type_variation = &"BoxGap8"
+
 [node name="FloatingTools" type="CanvasLayer" parent="." unique_id=176264705]
 
 [node name="Control" type="Control" parent="FloatingTools" unique_id=949565009]
@@ -1123,6 +1173,7 @@ tooltip_text = "Update Node (Ctrl + Shift + Plus)"
 text = "Update"
 
 [node name="References" type="HBoxContainer" parent="FloatingTools/Control/Inspector/Sections/Tabs/Node/Properties" unique_id=1691934562]
+visible = false
 layout_mode = 2
 
 [node name="Previous" type="Button" parent="FloatingTools/Control/Inspector/Sections/Tabs/Node/Properties/References" unique_id=1400674933]

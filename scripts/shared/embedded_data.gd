@@ -104,7 +104,7 @@ const Data = {
 					"entry": 1, # The scene's active entry node
 					"map": {
 						1 : { "offset":[100, 100], "io": [ [1, 0, 2, 0] ] },
-						2 : { "offset":[280, 170] },
+						2 : { "offset":[380, 220] },
 					}
 				},
 			},

@@ -27,6 +27,10 @@ func _ready() -> void:
 	_initialize_tab_selector()
 	pass
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready():
+		_initialize_tab_selector.call_deferred()
+
 func _register_connections() -> void:
 	# relaying tab mind request signals
 		# `relay_request_mind` signals from following nodes will be relayed to the mind
@@ -58,48 +62,44 @@ func refresh_inspector_tabs():
 	pass
 
 func refresh_inspector_tab(tab = null):
-	var maybe_tab_idx = tab if tab is int else TheTabContainer.get_current_tab()
-	var tab_title = tab if tab is String else TheTabContainer.get_tab_title(maybe_tab_idx)
+	var target_tab: Control = null
+	if tab is String and Tab.has(tab):
+		target_tab = Tab[tab]
+	elif tab is int:
+		target_tab = TheTabContainer.get_tab_control(tab)
+	else:
+		target_tab = TheTabContainer.get_current_tab_control()
 	# it's better to refresh important lists to avoid conflicts,
 	# in case the user have changed the dataset or resources' `use`cases.
-	if Tab.has(tab_title):
-		Tab[tab_title].call_deferred("refresh_tab")
+	if target_tab != null and target_tab.has_method("refresh_tab"):
+		target_tab.call_deferred("refresh_tab")
 	# any tab specific actions ?
 #	match tab_title:
 #		"Project":
 #			pass
 	pass
 
-var _tab_indices_smartly_sorted_by_title = {}
 func show_tab_of_title(title:String = ""):
 	if title.length() > 0 && Tab.has(title):
-		var redetect_indices:bool = false
-		if _tab_indices_smartly_sorted_by_title.has(title):
-			var tab_idx = _tab_indices_smartly_sorted_by_title[title]
-			if TheTabContainer.get_tab_title(tab_idx) == title :
-				TheTabContainer.set_current_tab(tab_idx)
-			else: # tabs are sure re-sorted by the user
-				redetect_indices = true
-		else:
-			redetect_indices = true
-		# When indices are not as expected, we shall make sure that list is sorted right,
-		# because tabs may be resorted manually by the user (with no special signal to detect)
-		if redetect_indices != false:
-			for idx in range(0, TheTabContainer.get_tab_count()):
-				var tab_title = TheTabContainer.get_tab_title(idx)
-				_tab_indices_smartly_sorted_by_title[tab_title] = idx
-			if _tab_indices_smartly_sorted_by_title.has(title):
-				show_tab_of_title(title)
+		for idx in TheTabContainer.get_tab_count():
+			if TheTabContainer.get_tab_control(idx) == Tab[title]:
+				TheTabContainer.set_current_tab(idx)
+				return
 	pass
 
 func _initialize_tab_selector() -> void:
+	TabSelectorPopup.clear()
 	for tab_title in Tab:
-		TabSelectorPopup.add_item(tab_title)
+		TabSelectorPopup.add_item(tr(tab_title))
+		var item_index: int = int(TabSelectorPopup.item_count - 1)
+		TabSelectorPopup.set_item_metadata(item_index, tab_title)
 	pass
 
 func _on_tab_selector_popup_id_pressed(id: int) -> void:
-	var selected = TabSelectorPopup.get_item_text(TabSelectorPopup.get_item_index(id))
-	show_tab_of_title(selected)
+	var item_index: int = int(TabSelectorPopup.get_item_index(id))
+	var stable_title = TabSelectorPopup.get_item_metadata(item_index)
+	if stable_title is String:
+		show_tab_of_title(stable_title)
 	pass
 
 func scroll_tabs_workaround(mouse_event: InputEventMouseButton) -> void:

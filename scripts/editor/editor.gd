@@ -26,6 +26,7 @@ signal request_mind()
 @onready var PlayFromLeftConsoleButton = $/root/Main/Editor/Top/Bar/Play/From/ShowConsole
 # bottom
 @onready var OpenSceneTitle = $/root/Main/Editor/Bottom/Bar/SceneTitle
+var _android_last_save_request_ms := -1000
 
 func _ready() -> void:
 	register_connections()
@@ -34,12 +35,38 @@ func _ready() -> void:
 func register_connections() -> void:
 	HistoryUndo.pressed.connect(self._request_mind.bind("history_rotate", -1))
 	HistoryRedo.pressed.connect(self._request_mind.bind("history_rotate", +1))
-	SaveButton.pressed.connect(self._request_mind.bind("save_project"))
+	if OS.has_feature("android"):
+		SaveButton.button_down.connect(self._request_android_save)
+		SaveButton.gui_input.connect(self._on_android_save_gui_input)
+	else:
+		SaveButton.pressed.connect(self._request_mind.bind("save_project"))
 	PlayFromSceneEntryButton.pressed.connect(self._request_mind.bind("console_play_from", "scene_entry"))
 	PlayFromProjectEntryButton.pressed.connect(self._request_mind.bind("console_play_from", "project_entry"))
 	PlayFromLeftConsoleButton.pressed.connect(self._request_mind.bind("console_play_from", "left_console"))
 	PlayFromSelectedNodeButton.pressed.connect(self._request_mind.bind("console_play_from", "selected_node"))
 	pass
+
+
+func _on_android_save_gui_input(event: InputEvent) -> void:
+	var activated := false
+	if event is InputEventScreenTouch:
+		activated = event.pressed
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		activated = event.pressed
+	if activated:
+		SaveButton.accept_event()
+		_request_android_save()
+
+
+func _request_android_save() -> void:
+	var now := Time.get_ticks_msec()
+	if now - _android_last_save_request_ms < 350:
+		return
+	_android_last_save_request_ms = now
+	if Main != null and Main.get("Mind") != null:
+		Main.Mind.call_deferred("save_project")
+	else:
+		_request_mind("save_project")
 
 func set_project_title(title:String) -> void:
 	ProjectTitle.set_deferred("text", title)

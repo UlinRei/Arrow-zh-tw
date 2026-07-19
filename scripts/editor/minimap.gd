@@ -27,6 +27,7 @@ var _CORNER_ADJUSTMENT:Vector2
 var _CROSSHAIR:Vector2 = Vector2(0,0)
 var _CROSSHAIR_COLOR:Dictionary = { "x": CROSSHAIR_COLOR, "y": CROSSHAIR_COLOR }
 var _ALREADY_SET_FOR_UPDATE:bool = false
+var _TOUCH_SEEK_INDEX := -1
 
 func _ready() -> void:
 	register_connections()
@@ -129,7 +130,29 @@ func toggle_opacity(force = null):
 func _on_gui_input(event:InputEvent) -> void:
 	if event is InputEventMouseButton || event is InputEventMouseMotion:
 		handle_seek(event)
+	elif event is InputEventScreenTouch:
+		if event.pressed:
+			_TOUCH_SEEK_INDEX = event.index
+			toggle_opacity(true)
+			handle_touch_seek(event.position)
+			accept_event()
+		elif event.index == _TOUCH_SEEK_INDEX:
+			_TOUCH_SEEK_INDEX = -1
+			handle_touch_seek(event.position)
+			toggle_opacity(false)
+			accept_event()
+	elif event is InputEventScreenDrag and event.index == _TOUCH_SEEK_INDEX:
+		handle_touch_seek(event.position)
+		accept_event()
 	pass
+
+func handle_touch_seek(touch_position: Vector2) -> void:
+	var offset_from_touch = (
+		touch_position / _GRID_TO_MINIMAP_RATIO
+		+ _CORNER_ADJUSTMENT
+	)
+	Grid.call_deferred("got_to_offset", offset_from_touch, true, false)
+	self.call_deferred("set_crosshair")
 
 func handle_seek(event:InputEventMouse) -> void:
 	var exact = (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))

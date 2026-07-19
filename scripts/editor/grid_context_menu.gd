@@ -33,10 +33,116 @@ var _QUICK_INSERT_TARGET = null
 const CLIPBOARD_MODE = Settings.CLIPBOARD_MODE
 
 var _NODE_INSERT_LIST_FULL = []
+var _ANDROID_OVERLAY: Control
+var _ANDROID_PANEL: PanelContainer
+var _ANDROID_CONTENT: VBoxContainer
+var _android_list_touch_index := -1
+var _android_list_touch_origin := Vector2.ZERO
+var _android_list_last_position := Vector2.ZERO
+var _android_list_velocity := 0.0
+var _android_list_dragging := false
+var _android_setup_complete := false
 
 func _ready() -> void:
 	register_connections()
+	if OS.has_feature("android"):
+		_setup_android_context_menu()
 	pass
+
+func _setup_android_context_menu() -> void:
+	if _android_setup_complete:
+		return
+	_ANDROID_OVERLAY = get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext"
+	) as Control
+	_ANDROID_PANEL = get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext/Center/Menu"
+	) as PanelContainer
+	_ANDROID_CONTENT = get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext/Center/Menu/Margin/Content"
+	) as VBoxContainer
+	var shield := get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext/Shield"
+	) as Control
+	if (
+		_ANDROID_OVERLAY == null
+		or _ANDROID_PANEL == null
+		or _ANDROID_CONTENT == null
+	):
+		push_error("Android context menu scene controls are missing.")
+		return
+	# Reuse the actual desktop controls so mouse and keyboard selection semantics
+	# (including Ctrl toggle and Shift range selection) stay exactly identical.
+	var node_panel := NodeInsertList.get_parent().get_parent() as PanelContainer
+	node_panel.reparent(_ANDROID_CONTENT, false)
+	EditToolBox.reparent(_ANDROID_CONTENT, false)
+	NodeInsertList.custom_minimum_size = Vector2.ZERO
+	NodeInsertList.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var popup_style := get_theme_stylebox("panel", "PopupPanel")
+	if popup_style != null:
+		_ANDROID_PANEL.add_theme_stylebox_override("panel", popup_style)
+	NodeInsertList.gui_input.connect(_on_android_list_gui_input)
+	set_process(true)
+	_configure_android_list_scrollbar.call_deferred()
+	if shield != null:
+		shield.gui_input.connect(_on_android_shield_gui_input)
+	_android_setup_complete = true
+
+
+func _configure_android_list_scrollbar() -> void:
+	await get_tree().process_frame
+	var scroll_bar: VScrollBar = NodeInsertList.get_v_scroll_bar()
+	if scroll_bar != null:
+		# Scrolling remains available through wheel and kinetic touch gestures;
+		# only direct manipulation of the narrow slider is disabled.
+		scroll_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		scroll_bar.modulate.a = 0.0
+
+
+func _on_android_list_gui_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_android_list_touch_index = event.index
+			_android_list_touch_origin = event.position
+			_android_list_last_position = event.position
+			_android_list_velocity = 0.0
+			_android_list_dragging = false
+		elif event.index == _android_list_touch_index:
+			if _android_list_dragging:
+				NodeInsertList.accept_event()
+			_android_list_touch_index = -1
+		return
+	if event is InputEventScreenDrag and event.index == _android_list_touch_index:
+		var total_drag: Vector2 = event.position - _android_list_touch_origin
+		if not _android_list_dragging and absf(total_drag.y) >= 10.0:
+			_android_list_dragging = true
+		if _android_list_dragging:
+			var scroll_bar: VScrollBar = NodeInsertList.get_v_scroll_bar()
+			var drag_delta: float = (
+				event.position.y - _android_list_last_position.y
+			)
+			if scroll_bar != null:
+				scroll_bar.value -= drag_delta
+			_android_list_velocity = -event.velocity.y
+			_android_list_last_position = event.position
+			NodeInsertList.accept_event()
+
+
+func _process(delta: float) -> void:
+	if not OS.has_feature("android") or _android_list_touch_index >= 0:
+		return
+	if absf(_android_list_velocity) < 8.0:
+		_android_list_velocity = 0.0
+		return
+	var scroll_bar: VScrollBar = NodeInsertList.get_v_scroll_bar()
+	if scroll_bar == null:
+		return
+	scroll_bar.value += _android_list_velocity * delta
+	_android_list_velocity = move_toward(
+		_android_list_velocity,
+		0.0,
+		2200.0 * delta
+	)
 
 func register_connections() -> void:
 	self.about_to_popup.connect(self._on_about_to_popup)
@@ -55,9 +161,8 @@ func register_connections() -> void:
 	pass
 
 func try_cache_node_type_list_from_mind(refresh_list:bool = true):
-	if _NODE_INSERT_LIST_FULL.size() == 0:
-		if Main.Mind && Main.Mind.NODE_TYPES_LIST:
-			_NODE_INSERT_LIST_FULL = Main.Mind.NODE_TYPES_LIST
+	if Main.Mind && Main.Mind.NODE_TYPES_LIST:
+		_NODE_INSERT_LIST_FULL = Main.Mind.NODE_TYPES_LIST.duplicate(true)
 	if refresh_list:
 		filter_node_insert_list_items_view()
 	pass
@@ -65,17 +170,84 @@ func try_cache_node_type_list_from_mind(refresh_list:bool = true):
 func show_up(on_position:Vector2, offset:Vector2, quick_insertion = null) -> void:
 	_CLICK_POINT_POSITION = on_position
 	_CLICK_POINT_OFFSET = offset
-	disable_insert_button_if_nothing_is_there()
 	set_quick_insert_mode(quick_insertion)
+	if OS.has_feature("android"):
+		if not _android_setup_complete:
+			_setup_android_context_menu()
+		if _ANDROID_OVERLAY == null or _ANDROID_PANEL == null:
+			return
+		NodeInsertFilterInput.clear()
+		NodeInsertList.deselect_all()
+		reset_quick_edit_buttons()
+		disable_insert_button_if_nothing_is_there()
+		_ANDROID_OVERLAY.show()
+		_position_android_overlay()
+		_refresh_android_overlay.call_deferred()
+		return
+	disable_insert_button_if_nothing_is_there()
 	self.set_position(on_position)
 	self.popup()
 	pass
 
+
+func _position_android_overlay() -> void:
+	if _ANDROID_OVERLAY == null or _ANDROID_PANEL == null:
+		return
+	var viewport_size := get_viewport().get_visible_rect().size
+	_ANDROID_OVERLAY.position = Vector2.ZERO
+	_ANDROID_OVERLAY.size = viewport_size
+	var desired_size := Vector2(480.0, 360.0)
+	desired_size = desired_size.min(viewport_size - Vector2.ONE * 32.0)
+	_ANDROID_PANEL.custom_minimum_size = desired_size
+	# The parent CenterContainer owns positioning, so layout recalculation can no
+	# longer snap the touch menu back to the upper-left corner.
+	_ANDROID_PANEL.reset_size()
+
+
+func _refresh_android_overlay() -> void:
+	for attempt in range(30):
+		try_cache_node_type_list_from_mind(false)
+		if _NODE_INSERT_LIST_FULL.size() > 0:
+			filter_node_insert_list_items_view()
+			await get_tree().process_frame
+			_position_android_overlay()
+			return
+		await get_tree().process_frame
+
 func _on_about_to_popup() -> void:
+	# On Android the main mind may finish initialization before this panel's
+	# one-shot signal connection runs. Refreshing here keeps insertion choices
+	# and their icons/previews available every time the menu opens.
+	try_cache_node_type_list_from_mind(true)
 	reset_quick_edit_buttons()
+	if OS.has_feature("android"):
+		NodeInsertList.custom_minimum_size = Vector2(360, 240)
+		_refresh_android_node_type_list.call_deferred()
+		call_deferred("_fit_android_popup_to_viewport")
 	NodeInsertList.grab_focus.call_deferred()
 	NodeInsertList.ensure_current_is_visible.call_deferred()
 	pass
+
+func _refresh_android_node_type_list() -> void:
+	# The Android scene can display this popup before the mind has finished
+	# publishing its node registry. Retry for a few rendered frames instead of
+	# leaving a permanently empty ItemList.
+	for attempt in range(8):
+		if Main.Mind && Main.Mind.NODE_TYPES_LIST.size() > 0:
+			_NODE_INSERT_LIST_FULL = Main.Mind.NODE_TYPES_LIST.duplicate(true)
+			filter_node_insert_list_items_view()
+			_fit_android_popup_to_viewport.call_deferred()
+			return
+		await get_tree().process_frame
+
+
+func _on_android_shield_gui_input(event: InputEvent) -> void:
+	# Raw Android touch outside the panel closes the overlay. Ignoring the
+	# synthesized mouse event prevents the gesture that opened the menu from
+	# immediately closing it again on the full-screen shield.
+	if event is InputEventScreenTouch and event.pressed:
+		_ANDROID_OVERLAY.accept_event()
+		_ANDROID_OVERLAY.hide()
 
 func _on_window_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -86,6 +258,24 @@ func _on_window_input(event: InputEvent) -> void:
 			var click_pose = event.get_position()
 			if ! MenuBox.get_rect().has_point(click_pose):
 				Grid._on_popup_request()
+	pass
+
+
+func _fit_android_popup_to_viewport() -> void:
+	if not OS.has_feature("android"):
+		return
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	var fitted_size := Vector2i(
+		mini(maxi(size.x, 320), int(viewport_size.x * 0.62)),
+		mini(maxi(size.y, 300), int(viewport_size.y * 0.78))
+	)
+	size = fitted_size
+
+	position = Vector2i(
+		clampi(position.x, 0, maxi(0, int(viewport_size.x) - size.x)),
+		clampi(position.y, 0, maxi(0, int(viewport_size.y) - size.y))
+	)
 	pass
 
 func disable_insert_button_if_nothing_is_there(force_disabled:bool = false) -> void:
@@ -103,7 +293,7 @@ func disable_insert_button_if_nothing_is_there(force_disabled:bool = false) -> v
 func set_quick_insert_mode(target = null) -> void:
 	_QUICK_INSERT_MODE = (target is Array && target.size() == 3)
 	_QUICK_INSERT_TARGET = (target if _QUICK_INSERT_MODE else null)
-	NodeInsertFilterForm.set_visible( ! _QUICK_INSERT_MODE )
+	NodeInsertFilterForm.set_visible(not _QUICK_INSERT_MODE)
 	EditToolBox.set_visible( ! _QUICK_INSERT_MODE )
 	NodeInsertList.set_select_mode( ItemList.SELECT_SINGLE if _QUICK_INSERT_MODE else ItemList.SELECT_MULTI )
 	NodeInsertList.set_default_cursor_shape(
@@ -178,10 +368,13 @@ func _on_node_insert_selected_type_button_pressed() -> void:
 func insert_selected_nodes_from_list() -> void:
 	var items_indices = NodeInsertList.get_selected_items()
 	if items_indices.size() > 0 :
+		var stored_offset := _CLICK_POINT_OFFSET
+		if OS.has_feature("android"):
+			stored_offset = Grid.view_to_document_vector(stored_offset)
 		if _QUICK_INSERT_MODE:
 			_request_mind("quick_insert_node", {
 				"node": NodeInsertList.get_item_metadata(items_indices[0]).type,
-				"offset": _CLICK_POINT_OFFSET,
+				"offset": stored_offset,
 				"connection": _QUICK_INSERT_TARGET
 			}, true )
 		else:
@@ -189,16 +382,22 @@ func insert_selected_nodes_from_list() -> void:
 			for item_index in items_indices:
 				var item_type = NodeInsertList.get_item_metadata(item_index).type
 				item_types.push_back(item_type)
-			_request_mind("insert_node", { "nodes": item_types, "offset": _CLICK_POINT_OFFSET }, true )
+			_request_mind("insert_node", { "nodes": item_types, "offset": stored_offset }, true )
 	pass
 
 func request_clipboard_pull() -> void:
-	_request_mind("clipboard_pull", _CLICK_POINT_OFFSET, true)
+	var stored_offset := _CLICK_POINT_OFFSET
+	if OS.has_feature("android"):
+		stored_offset = Grid.view_to_document_vector(stored_offset)
+	_request_mind("clipboard_pull", stored_offset, true)
 	pass
 
 func _request_mind(req:String, args, hide_menu:bool = false) -> void:
 	self.request_mind.emit(req, args)
 	# ... and close the grid context menu (popup)
 	if hide_menu:
-		self.hide()
+		if OS.has_feature("android") and _ANDROID_OVERLAY != null:
+			_ANDROID_OVERLAY.hide()
+		else:
+			self.hide()
 	pass

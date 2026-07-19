@@ -62,6 +62,19 @@ godot --headless --path . --export-release "Windows" "build/windows/Arrow.exe"
 
 建置完成後，`build/windows` 內的 `Arrow.exe` 與 `Arrow.pck` 必須一起保留。
 
+## Android 測試版本
+
+Android 版以橫向顯示與 arm64 裝置為目標，桌面版介面與操作不受影響。
+
+- 長按節點或空白畫布會開啟原有右鍵選單；手指移動超過門檻後視為拖曳，不會觸發長按。
+- 畫布支援雙指縮放；縮放以雙指中心為錨點，雙指同步移動時亦可平移畫布。
+- 「觸控工具」補上分支選取、下游選取、系統剪貼簿複製／貼上與清除選取。
+- 專案資料固定儲存在 Android 應用程式的 `user://` 私有目錄。
+- 匯入 `.arrow` 與匯出 `.arrow`、JSON、HTML、CSV 時使用 Android 系統文件選擇器。
+- Android 版不提供外部工作目錄與外部字型瀏覽；仍可使用專案內建字型及 Godot 預設字型。
+- 可從 Actions 的 **Build Android Test APK** 手動建置除錯 APK；Action 只上傳 Artifact，不會建立或更新 Release。
+- 測試 APK 使用臨時除錯簽章；正式發布時再另行加入固定發布簽章。
+
 ## 使用與設定
 
 第一次啟動後，可在 **Preferences → Language** 選擇 `Chinese, Taiwan (zh_TW)` ，並按下 `確認` 。

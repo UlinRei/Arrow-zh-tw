@@ -35,10 +35,16 @@ buses/default_bus_layout="res://assets/default_bus_layout.tres"
 [display]
 
 window/stretch/aspect="ignore"
+window/handheld/orientation=4
 
 [dotnet]
 
 project/assembly_name="Arrow"
+
+[input_devices]
+
+pointing/android/enable_long_press_as_right_click=false
+pointing/android/enable_pan_and_scale_gestures=true
 
 [input]
 
@@ -160,6 +166,8 @@ arrow_history_undo={
 }
 
 [rendering]
+
+textures/vram_compression/import_etc2_astc=true
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

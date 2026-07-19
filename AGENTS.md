@@ -43,6 +43,8 @@
 & 'G:\Desktop\Godot_v4.7-stable_mono_win64\Godot_v4.7-stable_mono_win64.exe' --headless --editor --path 'O:\Github Repositories\Arrow' --quit
 ```
 
+> 本機限定：上述 `G:\Desktop\Godot_v4.7-stable_mono_win64\Godot_v4.7-stable_mono_win64.exe` 與 `O:\Github Repositories\Arrow` 路徑只適用於 Ulin 目前這台 Windows 裝置。其他裝置、協作者與 fork 使用者必須使用各自的 Godot 4.7 stable 執行檔及專案路徑，不得沿用這組絕對路徑。
+
 - Windows release 建置命令：
 
 ```powershell
@@ -62,6 +64,11 @@
 - Windows Artifact 必須包含 `Arrow.exe` 與 `Arrow.pck`。
 - Linux Artifact 必須包含 `Arrow.x86_64`、`Arrow.pck`，以及保留執行權限的 `tar.gz`。
 - GitHub JavaScript Actions 使用支援 Node.js 24 的版本，目前為 `actions/checkout@v6` 與 `actions/upload-artifact@v7`。
+
+## Git 提交訊息
+
+- 代理建立的 Git 提交標題使用台灣繁體中文（zh-TW）。
+- 命令、參數、檔案路徑、程式碼識別名稱與必要的專有名詞維持原文。
 
 ## Git 與工作區安全
 

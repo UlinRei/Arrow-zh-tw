@@ -11,12 +11,12 @@ signal request_mind()
 @onready var Main = TheTree.get_root().get_child(0)
 @onready var TheViewport = get_viewport()
 @onready var GridContextMenu = $/root/Main/FloatingTools/Control/Context
-
 @onready var Minimap = $/root/Main/Editor/Center/MiniMap/Area
 @onready var MinimapBox = Minimap.get_parent()
 const USE_ARROW_MINIMAP:bool = Settings.CLASSIC_MINIMAP_ENABLED
 
 const NODE_NAME_FROM_ID_PREFIX = "GRID_GRAPH_NODE_WITH_ID_"
+const ANDROID_NODE_DISPLAY_SCALE := 1.15
 
 var DEFAULT_ZOOM:float
 var _ALLOW_ASSISTED_CONNECTION = true
@@ -82,13 +82,21 @@ func offset_from_position(local_pose:Vector2) -> Vector2:
 	var grid_offset_of_position = (sc_offset + local_pose) / self.get_zoom()
 	return grid_offset_of_position
 
+func document_to_view_vector(value: Vector2) -> Vector2:
+	return value * (ANDROID_NODE_DISPLAY_SCALE if OS.has_feature("android") else 1.0)
+
+func view_to_document_vector(value: Vector2) -> Vector2:
+	return value / (ANDROID_NODE_DISPLAY_SCALE if OS.has_feature("android") else 1.0)
+
 func current_mouse_offset() -> Vector2:
 	return offset_from_position( self.get_local_mouse_position() )
 
 # (right-click on the grid)
 func _on_popup_request(_p = null) -> void:
-	var local = self.get_local_mouse_position()
-	var global = self.get_global_mouse_position()
+	var local := self.get_local_mouse_position()
+	if OS.has_feature("android") and _p is Vector2:
+		local = _p
+	var global: Vector2 = self.get_global_rect().position + local
 	GridContextMenu.call_deferred("show_up", global, offset_from_position(local))
 	pass
 
@@ -201,9 +209,14 @@ func try_assisted_connection(outgoing:bool, first_side_slot:int, first_side_name
 func _on_connection_with_empty(node_name:String, slot:int, release_position:Vector2, outgoing:bool) -> void:
 	if try_assisted_connection(outgoing, slot, node_name) == false:
 		if _ALLOW_QUICK_NODE_INSERTION:
+			var menu_position := release_position
+			if OS.has_feature("android"):
+				menu_position = (
+					get_global_transform_with_canvas() * release_position
+				)
 			GridContextMenu.call_deferred(
 				"show_up",
-				release_position, offset_from_position(release_position),
+				menu_position, offset_from_position(release_position),
 				[node_name.to_int(), slot, outgoing]
 			)
 	pass
@@ -416,18 +429,122 @@ func update_grid_node_box(instance_or_id, node:Dictionary) -> void:
 		node_instance.set_deferred("title", node.name)
 		# pass a clone of data to the plot node
 		var data_clone = node.data.duplicate(true) 
-		node_instance.call_deferred("_update_node", data_clone)
-		resize_to_best_fit(node_instance, data_clone)
+		if OS.has_feature("android"):
+			node_instance.call("_update_node", data_clone)
+			_force_android_content_preview(node_instance, data_clone)
+			_resize_android_node_after_update.call_deferred(
+				node_instance,
+				data_clone
+			)
+		else:
+			node_instance.call_deferred("_update_node", data_clone)
+			resize_to_best_fit(node_instance, data_clone)
 	# now that we've changed a node box, we shall update minimap too
 	if USE_ARROW_MINIMAP:
 		await TheTree.process_frame # wait (none-blocking) skipping one _process
 		Minimap.call_deferred("refresh")
 	pass
 
+
+func _resize_android_node_after_update(
+	node_instance: GraphNode,
+	data: Dictionary
+) -> void:
+	await get_tree().process_frame
+	if is_instance_valid(node_instance):
+		node_instance.custom_minimum_size = Vector2.ZERO
+		_force_android_content_preview(node_instance, data)
+		_apply_android_node_typography(node_instance)
+		resize_to_best_fit(node_instance, data)
+	await get_tree().process_frame
+	if is_instance_valid(node_instance):
+		var content_size := _get_android_content_bounding_box(node_instance)
+		var base_size := Vector2.ZERO
+		var has_explicit_size: bool = (
+			data.has("rect")
+			and data.rect is Array
+			and data.rect.size() >= 2
+		)
+		if has_explicit_size:
+			base_size = document_to_view_vector(
+				Helpers.Utils.array_to_vector2(data.rect)
+			)
+		elif node_instance.has_meta("android_preview_base_size"):
+			base_size = node_instance.get_meta("android_preview_base_size")
+		else:
+			base_size = node_instance.size
+		base_size.x = maxf(base_size.x, content_size.x)
+		base_size.y = maxf(base_size.y, content_size.y)
+		node_instance.set_meta("android_preview_base_size", base_size)
+		var android_preview_size := base_size
+		# Keep the content as the true minimum. The previous preview size was also
+		# used as the minimum, which made the Android resize handle enlarge-only.
+		node_instance.custom_minimum_size = content_size
+		node_instance.size = android_preview_size
+		node_instance.set_deferred("size", android_preview_size)
+		node_instance.queue_sort()
+
+
+func _get_android_content_bounding_box(node_instance: GraphNode) -> Vector2:
+	var measured_size := Vector2.ZERO
+	for child in node_instance.get_children():
+		if child is Control and child.is_visible_in_tree():
+			var control := child as Control
+			measured_size = measured_size.max(
+				control.position + control.get_combined_minimum_size()
+			)
+	return measured_size
+
+
+func _apply_android_node_typography(node_instance: GraphNode) -> void:
+	var entry_plaque := node_instance.get_node_or_null("Display/Plaque") as Label
+	if entry_plaque != null:
+		entry_plaque.add_theme_font_size_override("font_size", 22)
+	if not node_instance.has_meta("android_large_resizer"):
+		var resizer_icon := node_instance.get_theme_icon("resizer", "GraphNode")
+		if resizer_icon != null:
+			var resizer_image := resizer_icon.get_image()
+			if resizer_image != null and not resizer_image.is_empty():
+				resizer_image.resize(48, 48, Image.INTERPOLATE_LANCZOS)
+				node_instance.add_theme_icon_override(
+					"resizer",
+					ImageTexture.create_from_image(resizer_image)
+				)
+		node_instance.set_meta("android_large_resizer", true)
+
+
+func _force_android_content_preview(
+	node_instance: GraphNode,
+	data: Dictionary
+) -> void:
+	var title := node_instance.get_node_or_null("Display/Title") as RichTextLabel
+	var brief := node_instance.get_node_or_null("Display/Brief") as RichTextLabel
+	if title == null or brief == null:
+		return
+
+	var title_text := str(data.get("title", ""))
+	title.text = title_text
+	title.visible = not title_text.is_empty()
+
+	var brief_text := ""
+	var brief_value = data.get("brief", 0)
+	if brief_value is String and not brief_value.is_valid_int():
+		brief_text = brief_value
+	else:
+		var brief_length := int(brief_value)
+		var content_text := str(data.get("content", ""))
+		if brief_length > 0:
+			brief_text = content_text.substr(0, brief_length)
+	brief.text = brief_text
+	brief.visible = not brief_text.is_empty()
+
 func update_grid_node_map(instance_or_id, map:Dictionary) -> void:
 	var node_instance = get_node_instance(instance_or_id)
 	if node_instance is Node:
-		node_instance.set_deferred("position_offset", Helpers.Utils.array_to_vector2(map.offset) )
+		node_instance.set_deferred(
+			"position_offset",
+			document_to_view_vector(Helpers.Utils.array_to_vector2(map.offset))
+		)
 		if map.has("skip") && map.skip == true:
 			set_node_skip(node_instance, true)
 	if USE_ARROW_MINIMAP:
@@ -566,7 +683,9 @@ func cut_off_connections(node_id: int, direction: String, last_kept: int) -> voi
 func _on_node_move_end() -> void:
 	# here might be more than one node selected and moved, so...
 	for node_id in _ALREADY_SELECTED_NODES_BY_ID:
-		var the_node_offset_vector = _ALREADY_SELECTED_NODES_BY_ID[node_id].get_position_offset()
+		var the_node_offset_vector = view_to_document_vector(
+			_ALREADY_SELECTED_NODES_BY_ID[node_id].get_position_offset()
+		)
 		_request_mind("update_node_map", {
 			"id": node_id,
 			"offset": Helpers.Utils.vector2_to_array(the_node_offset_vector)
@@ -625,7 +744,8 @@ func make_reselectable(instance) -> void:
 func make_resizable(instance) -> void:
 	instance.set_resizable(true)
 	if false == Settings.LOCALLY_HANDLED_RESIZABLE_NODES.has(instance._node_resource.type):
-		instance.draw.connect(self.resize_to_best_fit.bind(instance, instance._node_resource.data), CONNECT_DEFERRED)
+		if not OS.has_feature("android"):
+			instance.draw.connect(self.resize_to_best_fit.bind(instance, instance._node_resource.data), CONNECT_DEFERRED)
 		instance.resize_request.connect(self._on_resize_request.bind(instance), CONNECT_DEFERRED)
 		instance.resize_end.connect(self._on_resize_end.bind(instance), CONNECT_DEFERRED)
 	pass
@@ -667,7 +787,18 @@ func resize_to_best_fit(instance, data: Dictionary) -> void:
 	pass
 
 func _on_resize_request(new_size, instance) -> void:
-	var min_bounding = get_min_content_bounding_box(instance)
+	var min_bounding = (
+		_get_android_content_bounding_box(instance)
+		if OS.has_feature("android")
+		else get_min_content_bounding_box(instance)
+	)
+	if OS.has_feature("android"):
+		var applied_size: Vector2 = (new_size as Vector2).max(min_bounding)
+		instance._node_resource.data.rect = (
+			Helpers.Utils.vector2_to_array(view_to_document_vector(applied_size))
+		)
+		instance.size = applied_size
+		return
 	@warning_ignore("INCOMPATIBLE_TERNARY")
 	var rect_size_array = Helpers.Utils.vector2_to_array(new_size) if new_size > min_bounding else null
 	# emulate change for user to see
@@ -676,7 +807,16 @@ func _on_resize_request(new_size, instance) -> void:
 	pass
 
 func _on_resize_end(new_size, instance) -> void:
-	var rect_size_array = Helpers.Utils.vector2_to_array(new_size)
+	if OS.has_feature("android"):
+		new_size = (new_size as Vector2).max(
+			_get_android_content_bounding_box(instance)
+		)
+	var stored_size: Vector2 = (
+		view_to_document_vector(new_size)
+		if OS.has_feature("android")
+		else new_size
+	)
+	var rect_size_array = Helpers.Utils.vector2_to_array(stored_size)
 	Main.Mind.central_event_dispatcher.call(
 		"update_resource",
 		{
@@ -700,6 +840,19 @@ func update_zoom(magnitude: float, direction: bool) -> void:
 	pass
 
 func _gui_input(event: InputEvent) -> void:
+	if (
+		OS.has_feature("android")
+		and (event is InputEventScreenTouch or event is InputEventScreenDrag)
+	):
+		if event is InputEventScreenTouch and event.pressed:
+			var android_adapter := Main.get_node_or_null("AndroidAdapter")
+			if android_adapter != null:
+				android_adapter.handle_grid_touch_press(
+					event,
+					get_global_rect().position + event.position
+				)
+		accept_event()
+		return
 	if event is InputEventKey:
 		# Without Modifiers
 		# > Press

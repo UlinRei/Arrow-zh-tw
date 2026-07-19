@@ -21,8 +21,16 @@ const QUICK_PREFERENCES_MENU = {
 }
 
 func _ready() -> void:
+	if OS.has_feature("android"):
+		hide()
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		queue_free()
+		return
 	load_quick_preferences_menu()
-	QuickPreferencesPopup.id_pressed.connect(self._on_quick_preferences_popup_item_id_pressed, CONNECT_DEFERRED)
+	QuickPreferencesPopup.id_pressed.connect(
+		self._on_quick_preferences_popup_item_id_pressed,
+		CONNECT_DEFERRED
+	)
 	pass
 
 func load_quick_preferences_menu() -> void:
@@ -41,6 +49,8 @@ func load_quick_preferences_menu() -> void:
 	pass
 
 func refresh_quick_preferences_menu_view() -> void:
+	if OS.has_feature("android"):
+		return
 	for item_id in QUICK_PREFERENCES_MENU:
 		if QUICK_PREFERENCES_MENU[item_id] != null:
 			QuickPreferencesPopup.set_item_checked( item_id, Main[ QUICK_PREFERENCES_MENU[item_id].preference ] )

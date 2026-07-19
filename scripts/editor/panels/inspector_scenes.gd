@@ -49,7 +49,14 @@ func register_connections() -> void:
 	Filter.text_changed.connect(self._on_listing_instruction_change, CONNECT_DEFERRED)
 	FilterReverse.toggled.connect(self._on_listing_instruction_change, CONNECT_DEFERRED)
 	SortAlphabetical.toggled.connect(self._on_listing_instruction_change, CONNECT_DEFERRED)
+	if OS.has_feature("android"):
+		visibility_changed.connect(self._on_visibility_changed)
 	pass
+
+
+func _on_visibility_changed() -> void:
+	if is_visible_in_tree():
+		refresh_tab.call_deferred()
 
 func initialize_tab() -> void:
 	refresh_tab()
@@ -64,10 +71,27 @@ func refresh_scenes_list(list:Dictionary = {}) -> void:
 	ScenesList.clear()
 	_LISTED_SCENES_BY_ID.clear()
 	_LISTED_SCENES_BY_NAME.clear()
-	if list.size() == 0 :
+	var scenes_to_list: Dictionary = list.duplicate(true)
+	if OS.has_feature("android"):
+		scenes_to_list.clear()
+		var active_project = Main.Mind._PROJECT
+		if (
+			active_project is Dictionary
+			and active_project.has("resources")
+			and active_project.resources is Dictionary
+			and active_project.resources.has("scenes")
+			and active_project.resources.scenes is Dictionary
+		):
+			scenes_to_list = active_project.resources.scenes.duplicate(true)
+	elif scenes_to_list.size() == 0:
 		# fetch the scenes dataset if it's not provided as parameter
-		list = Main.Mind.clone_dataset_of("scenes", {}, { "macro": null })
-	list_scenes(list)
+		scenes_to_list = Main.Mind.clone_dataset_of("scenes")
+	var normal_scenes: Dictionary = {}
+	for scene_id in scenes_to_list:
+		var scene = scenes_to_list[scene_id]
+		if not scene.get("macro", false):
+			normal_scenes[scene_id] = scene
+	list_scenes(normal_scenes)
 	ScenesList.deselect_all()
 	smartly_update_tools()
 	update_scene_notes()
@@ -188,9 +212,13 @@ func smartly_update_tools(selected_scene_id:int = -1) -> void:
 			var the_scene = _LISTED_SCENES_BY_ID[selected_scene_id]
 			# you can't remove the last existing scene or the one including the project's entry point
 			var the_project_entry = Main.Mind.get_project_entry()
-			if (
-				_LISTED_SCENES_BY_ID.size() <= 1 || the_scene.map.has(the_project_entry) ||
+			var selected_is_open: bool = (
 				selected_scene_id == _SELECTED_SCENE_BEING_EDITED_ID
+			)
+			if (
+				_LISTED_SCENES_BY_ID.size() <= 1
+				or the_scene.map.has(the_project_entry)
+				or (selected_is_open and not OS.has_feature("android"))
 			):
 				selected_scene_is_removable = false
 			else:
@@ -227,7 +255,20 @@ func request_remove_scene(resource_id:int = -1) -> void:
 	if _LISTED_SCENES_BY_ID.size() >= 2 : # Note: Every project must have at least one scene.
 		if _LISTED_SCENES_BY_ID.has(resource_id):
 			if resource_id == _SELECTED_SCENE_BEING_EDITED_ID:
-				printerr("Unable to remove open scene!")
+				if OS.has_feature("android"):
+					var fallback_scene_id := -1
+					for candidate_id in _LISTED_SCENES_BY_ID:
+						if candidate_id != resource_id:
+							fallback_scene_id = candidate_id
+							break
+					if fallback_scene_id >= 0:
+						self.relay_request_mind.emit(
+							"switch_scene",
+							fallback_scene_id
+						)
+						prompt_to_request_scene_removal(resource_id)
+				else:
+					printerr("Unable to remove open scene!")
 			else:
 				prompt_to_request_scene_removal(resource_id)
 	ScenesList.deselect_all()
@@ -325,6 +366,20 @@ func submit_scene_modification() -> void:
 	pass
 
 func _on_list_gui_input(event: InputEvent) -> void:
+	if (
+		OS.has_feature("android")
+		and event is InputEventScreenTouch
+		and not event.pressed
+	):
+		var touched_index: int = int(
+			ScenesList.get_item_at_position(event.position, true)
+		)
+		if touched_index >= 0:
+			ScenesList.select(touched_index)
+			_on_scenes_list_item_selected(touched_index)
+			ScenesList.ensure_current_is_visible()
+			ScenesList.accept_event()
+		return
 	if event is InputEventKey:
 		if event.is_echo() == false && event.is_pressed() == true:
 			if event.is_ctrl_pressed():
