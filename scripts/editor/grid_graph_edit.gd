@@ -447,12 +447,18 @@ func _resize_android_node_after_update(
 	if is_instance_valid(node_instance):
 		node_instance.custom_minimum_size = Vector2.ZERO
 		_force_android_content_preview(node_instance, data)
+		_apply_android_node_typography(node_instance)
 		resize_to_best_fit(node_instance, data)
 	await get_tree().process_frame
 	if is_instance_valid(node_instance):
-		var content_size := get_min_content_bounding_box(node_instance)
+		var content_size := _get_android_content_bounding_box(node_instance)
 		var base_size := Vector2.ZERO
-		if data.has("rect") and data.rect is Array and data.rect.size() >= 2:
+		var has_explicit_size: bool = (
+			data.has("rect")
+			and data.rect is Array
+			and data.rect.size() >= 2
+		)
+		if has_explicit_size:
 			base_size = Helpers.Utils.array_to_vector2(data.rect)
 		elif node_instance.has_meta("android_preview_base_size"):
 			base_size = node_instance.get_meta("android_preview_base_size")
@@ -461,11 +467,60 @@ func _resize_android_node_after_update(
 		base_size.x = maxf(base_size.x, content_size.x)
 		base_size.y = maxf(base_size.y, content_size.y)
 		node_instance.set_meta("android_preview_base_size", base_size)
-		var android_preview_size := base_size * 1.20
-		node_instance.custom_minimum_size = android_preview_size
+		var android_preview_size := (
+			base_size if has_explicit_size else base_size * 1.20
+		)
+		# Keep the content as the true minimum. The previous preview size was also
+		# used as the minimum, which made the Android resize handle enlarge-only.
+		node_instance.custom_minimum_size = content_size
 		node_instance.size = android_preview_size
 		node_instance.set_deferred("size", android_preview_size)
 		node_instance.queue_sort()
+
+
+func _get_android_content_bounding_box(node_instance: GraphNode) -> Vector2:
+	var measured_size := node_instance.get_combined_minimum_size()
+	var pending: Array[Dictionary] = []
+	for child in node_instance.get_children():
+		if child is Control:
+			pending.append({
+				"control": child,
+				"offset": (child as Control).position,
+			})
+	while not pending.is_empty():
+		var item: Dictionary = pending.pop_back()
+		var control := item.control as Control
+		if control == null or not control.is_visible_in_tree():
+			continue
+		var offset: Vector2 = item.offset
+		var control_size := control.size.max(
+			control.get_combined_minimum_size()
+		)
+		measured_size = measured_size.max(offset + control_size)
+		for child in control.get_children():
+			if child is Control:
+				pending.append({
+					"control": child,
+					"offset": offset + (child as Control).position,
+				})
+	return measured_size
+
+
+func _apply_android_node_typography(node_instance: GraphNode) -> void:
+	var entry_plaque := node_instance.get_node_or_null("Display/Plaque") as Label
+	if entry_plaque != null:
+		entry_plaque.add_theme_font_size_override("font_size", 22)
+	if not node_instance.has_meta("android_large_resizer"):
+		var resizer_icon := node_instance.get_theme_icon("resizer", "GraphNode")
+		if resizer_icon != null:
+			var resizer_image := resizer_icon.get_image()
+			if resizer_image != null and not resizer_image.is_empty():
+				resizer_image.resize(48, 48, Image.INTERPOLATE_LANCZOS)
+				node_instance.add_theme_icon_override(
+					"resizer",
+					ImageTexture.create_from_image(resizer_image)
+				)
+		node_instance.set_meta("android_large_resizer", true)
 
 
 func _force_android_content_preview(
@@ -694,7 +749,8 @@ func make_reselectable(instance) -> void:
 func make_resizable(instance) -> void:
 	instance.set_resizable(true)
 	if false == Settings.LOCALLY_HANDLED_RESIZABLE_NODES.has(instance._node_resource.type):
-		instance.draw.connect(self.resize_to_best_fit.bind(instance, instance._node_resource.data), CONNECT_DEFERRED)
+		if not OS.has_feature("android"):
+			instance.draw.connect(self.resize_to_best_fit.bind(instance, instance._node_resource.data), CONNECT_DEFERRED)
 		instance.resize_request.connect(self._on_resize_request.bind(instance), CONNECT_DEFERRED)
 		instance.resize_end.connect(self._on_resize_end.bind(instance), CONNECT_DEFERRED)
 	pass

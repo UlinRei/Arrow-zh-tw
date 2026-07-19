@@ -5,6 +5,9 @@ extends Node
 
 const LONG_PRESS_SECONDS := 0.55
 const NODE_DRAG_CANCEL_DISTANCE := 18.0
+const DOUBLE_TAP_SECONDS := 0.34
+const DOUBLE_TAP_DISTANCE := 56.0
+const TAP_MOVE_DISTANCE := 24.0
 const KEYBOARD_MARGIN := 56.0
 const KEYBOARD_MOVE_SPEED := 1800.0
 const ANDROID_BASE_DPI := 160.0
@@ -19,11 +22,14 @@ const ANDROID_GRAPH_TOOL_FONT_SIZE := 22
 const ANDROID_GRAPH_NUMBER_FONT_SIZE := 30
 const ANDROID_GRAPH_TOOL_ICON_SIZE := 34
 const ANDROID_TOP_ACTION_SCALE := 1.5
+const ANDROID_PROJECT_TITLE_FONT_SIZE := 22
+const ANDROID_SCENE_TITLE_FONT_SIZE := 20
 
 enum CanvasMode {
 	NONE,
 	PENDING,
 	LONG_READY,
+	DISABLED_DRAG,
 	PINCH,
 }
 
@@ -31,8 +37,10 @@ var Main: Control
 var Grid: GraphEdit
 var ContextMenu: PopupPanel
 var AndroidContextOverlay: Control
+var AndroidContextPanel: Control
 var MiniMapBox: Control
 var InspectorPanel: Control
+var NewDocumentPanel: Control
 var AppMenuButton: MenuButton
 var SaveButton: Button
 var EditorPanel: Control
@@ -41,10 +49,10 @@ var BottomQuery: Control
 var BottomPanel: Control
 
 var _setup_complete := false
-var _inspector_base_position := Vector2.ZERO
 var _keyboard_shift := 0.0
 var _keyboard_avoidance_active := false
-var _bottom_panel_base_position := Vector2.ZERO
+var _keyboard_movable_panel: Control
+var _keyboard_base_position := Vector2.ZERO
 
 var _touch_points: Dictionary = {}
 var _suppress_emulated_canvas_mouse := false
@@ -52,8 +60,11 @@ var _mouse_canvas_fallback_active := false
 
 var _canvas_mode := CanvasMode.NONE
 var _canvas_touch_index := -1
+var _canvas_origin := Vector2.ZERO
 var _canvas_current := Vector2.ZERO
 var _canvas_elapsed := 0.0
+var _last_empty_tap_time_ms := -1000
+var _last_empty_tap_position := Vector2.ZERO
 
 var _node_hold_active := false
 var _node_hold_index := -1
@@ -94,11 +105,17 @@ func _setup_android() -> void:
 	AndroidContextOverlay = get_node_or_null(
 		"/root/Main/Overlays/Control/AndroidContext"
 	) as Control
+	AndroidContextPanel = get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext/Menu"
+	) as Control
 	MiniMapBox = get_node_or_null(
 		"/root/Main/Editor/Center/MiniMap"
 	) as Control
 	InspectorPanel = get_node_or_null(
 		"/root/Main/FloatingTools/Control/Inspector"
+	) as Control
+	NewDocumentPanel = get_node_or_null(
+		"/root/Main/Overlays/Control/NewDocument"
 	) as Control
 	AppMenuButton = get_node_or_null(
 		"/root/Main/Editor/Top/Bar/AppMenu"
@@ -121,15 +138,12 @@ func _setup_android() -> void:
 		DisplayServer.SCREEN_SENSOR_LANDSCAPE
 	)
 
-	if InspectorPanel != null:
-		_inspector_base_position = InspectorPanel.position
-	if BottomPanel != null:
-		_bottom_panel_base_position = BottomPanel.position
 	_setup_complete = true
 	_configure_optional_android_controls()
 	_apply_android_ui_scale()
 	_enlarge_graph_toolbar.call_deferred()
 	_enlarge_top_right_actions.call_deferred()
+	_enlarge_android_titles.call_deferred()
 	Main.UI.call_deferred("_apply_android_inspector_layout")
 	if InspectorToggleButton != null:
 		InspectorToggleButton.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -350,6 +364,26 @@ func _enlarge_top_right_actions() -> void:
 			indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
+func _enlarge_android_titles() -> void:
+	await get_tree().process_frame
+	var project_title := get_node_or_null(
+		"/root/Main/Editor/Top/Bar/ProjectTitle"
+	) as Label
+	if project_title != null:
+		project_title.add_theme_font_size_override(
+			"font_size",
+			ANDROID_PROJECT_TITLE_FONT_SIZE
+		)
+	var scene_title := get_node_or_null(
+		"/root/Main/Editor/Bottom/Bar/SceneTitle"
+	) as Label
+	if scene_title != null:
+		scene_title.add_theme_font_size_override(
+			"font_size",
+			ANDROID_SCENE_TITLE_FONT_SIZE
+		)
+
+
 func _input(event: InputEvent) -> void:
 	if not _setup_complete:
 		return
@@ -429,6 +463,17 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 		AndroidContextOverlay != null
 		and AndroidContextOverlay.is_visible_in_tree()
 	):
+		if (
+			event.pressed
+			and AndroidContextPanel != null
+			and not AndroidContextPanel.get_global_rect().has_point(event.position)
+		):
+			AndroidContextOverlay.hide()
+			_touch_points.erase(event.index)
+			_suppress_emulated_canvas_mouse = true
+			_cancel_active_canvas_gesture()
+			get_viewport().set_input_as_handled()
+			return
 		if not event.pressed:
 			_touch_points.erase(event.index)
 			_suppress_emulated_canvas_mouse = false
@@ -452,7 +497,8 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 			return
 
 		if _is_empty_canvas_point(event.position):
-			if event.double_tap:
+			if event.double_tap or _is_manual_double_tap(event.position):
+				_last_empty_tap_time_ms = -1000
 				_cancel_active_canvas_gesture()
 				_suppress_emulated_canvas_mouse = true
 				_show_context_menu(event.position)
@@ -554,9 +600,12 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 func _handle_pan_gesture(event: InputEventPanGesture) -> void:
 	if not Grid.get_global_rect().has_point(event.position):
 		return
-	# Android emits PanGesture while a finger is held nearly still. Treating it
-	# as navigation cancels every long press. Single-touch canvas movement is
-	# intentionally disabled; the minimap remains independently interactive.
+	# Android reports two-finger navigation as PanGesture even when raw touch
+	# drag events are not emitted. Move the graph opposite the finger delta so
+	# the canvas visually follows the gesture.
+	_cancel_active_canvas_gesture()
+	_suppress_emulated_canvas_mouse = true
+	Grid.set_scroll_offset(Grid.get_scroll_offset() - event.delta)
 	get_viewport().set_input_as_handled()
 
 
@@ -595,12 +644,20 @@ func _begin_canvas_touch(event: InputEventScreenTouch) -> void:
 func _begin_canvas_at(position: Vector2, input_index: int) -> void:
 	_canvas_mode = CanvasMode.PENDING
 	_canvas_touch_index = input_index
+	_canvas_origin = position
 	_canvas_current = position
 	_canvas_elapsed = 0.0
 
 
 func _update_canvas_drag(position: Vector2) -> void:
 	_canvas_current = position
+	if (
+		_canvas_mode == CanvasMode.PENDING
+		and _canvas_origin.distance_to(position) > TAP_MOVE_DISTANCE
+	):
+		# Android deliberately has no selection rectangle. Keep consuming the
+		# complete empty-canvas drag so GraphEdit cannot start native box select.
+		_canvas_mode = CanvasMode.DISABLED_DRAG
 
 
 func _finish_canvas_touch(release_position: Vector2) -> void:
@@ -609,14 +666,30 @@ func _finish_canvas_touch(release_position: Vector2) -> void:
 	match _canvas_mode:
 		CanvasMode.PENDING:
 			# A short tap on empty canvas clears the current selection.
+			if _canvas_origin.distance_to(release_position) <= TAP_MOVE_DISTANCE:
+				_last_empty_tap_time_ms = Time.get_ticks_msec()
+				_last_empty_tap_position = release_position
 			_clear_selection()
 		CanvasMode.LONG_READY:
 			# The menu was already shown as soon as the hold threshold elapsed.
 			pass
+		CanvasMode.DISABLED_DRAG:
+			# Empty-canvas drag is intentionally a no-op on Android.
+			pass
 
 	_canvas_mode = CanvasMode.NONE
 	_canvas_touch_index = -1
+	_canvas_origin = Vector2.ZERO
 	_canvas_elapsed = 0.0
+
+
+func _is_manual_double_tap(position: Vector2) -> bool:
+	var elapsed_ms := Time.get_ticks_msec() - _last_empty_tap_time_ms
+	return (
+		elapsed_ms >= 0
+		and elapsed_ms <= int(DOUBLE_TAP_SECONDS * 1000.0)
+		and _last_empty_tap_position.distance_to(position) <= DOUBLE_TAP_DISTANCE
+	)
 
 
 func _begin_node_hold(event: InputEventScreenTouch, node_id: int) -> void:
@@ -803,75 +876,83 @@ func _process(delta: float) -> void:
 
 
 func _update_keyboard_avoidance(delta: float) -> void:
-	if InspectorPanel == null or BottomPanel == null:
-		return
-
 	var keyboard_visible := DisplayServer.virtual_keyboard_get_height() > 0
 	var focused := get_viewport().gui_get_focus_owner() as Control
-	var inspector_has_focus := (
-		focused != null
-		and focused.is_visible_in_tree()
-		and InspectorPanel.is_ancestor_of(focused)
-	)
-	var bottom_query_has_focus := (
-		focused != null
-		and focused.is_visible_in_tree()
-		and BottomQuery != null
-		and (focused == BottomQuery or BottomQuery.is_ancestor_of(focused))
-	)
+	var focused_panel := _keyboard_panel_for(focused)
 
 	if (
 		keyboard_visible
-		and (inspector_has_focus or bottom_query_has_focus)
-		and not _keyboard_avoidance_active
+		and focused_panel != null
+		and (
+			not _keyboard_avoidance_active
+			or focused_panel != _keyboard_movable_panel
+		)
 	):
-		_inspector_base_position = InspectorPanel.position
-		_bottom_panel_base_position = BottomPanel.position
+		_restore_keyboard_panel()
+		_keyboard_movable_panel = focused_panel
+		_keyboard_base_position = focused_panel.position
+		_keyboard_shift = 0.0
 		_keyboard_avoidance_active = true
 
 	if not _keyboard_avoidance_active:
 		return
 
-	var target_shift := _calculate_keyboard_shift()
+	var target_shift := 0.0
+	if keyboard_visible and focused_panel == _keyboard_movable_panel:
+		target_shift = _calculate_keyboard_shift(
+			focused,
+			_keyboard_movable_panel
+		)
 	_keyboard_shift = move_toward(
 		_keyboard_shift,
 		target_shift,
 		KEYBOARD_MOVE_SPEED * delta
 	)
 
-	if inspector_has_focus:
-		InspectorPanel.position = _inspector_base_position + Vector2(
-			0.0,
-			round(_keyboard_shift)
-		)
-	if bottom_query_has_focus:
-		BottomPanel.position = _bottom_panel_base_position + Vector2(
+	if is_instance_valid(_keyboard_movable_panel):
+		_keyboard_movable_panel.position = _keyboard_base_position + Vector2(
 			0.0,
 			round(_keyboard_shift)
 		)
 	if not keyboard_visible and is_zero_approx(_keyboard_shift):
-		InspectorPanel.position = _inspector_base_position
-		BottomPanel.position = _bottom_panel_base_position
+		_restore_keyboard_panel()
 		_keyboard_avoidance_active = false
 
 
-func _calculate_keyboard_shift() -> float:
+func _keyboard_panel_for(focused: Control) -> Control:
+	if focused == null or not focused.is_visible_in_tree():
+		return null
+	if NewDocumentPanel != null and NewDocumentPanel.is_ancestor_of(focused):
+		return NewDocumentPanel
+	if InspectorPanel != null and InspectorPanel.is_ancestor_of(focused):
+		return InspectorPanel
+	if (
+		BottomQuery != null
+		and (focused == BottomQuery or BottomQuery.is_ancestor_of(focused))
+	):
+		return BottomPanel
+	return null
+
+
+func _restore_keyboard_panel() -> void:
+	if is_instance_valid(_keyboard_movable_panel):
+		_keyboard_movable_panel.position = _keyboard_base_position
+	_keyboard_movable_panel = null
+
+
+func _calculate_keyboard_shift(
+	focused: Control,
+	movable_panel: Control
+) -> float:
 	var keyboard_height_pixels := DisplayServer.virtual_keyboard_get_height()
 	if keyboard_height_pixels <= 0:
 		return 0.0
 
-	var focused := get_viewport().gui_get_focus_owner() as Control
-	if focused == null or not focused.is_visible_in_tree():
-		return 0.0
-	var movable_panel: Control = null
-	if InspectorPanel != null and InspectorPanel.is_ancestor_of(focused):
-		movable_panel = InspectorPanel
-	elif (
-		BottomQuery != null
-		and (focused == BottomQuery or BottomQuery.is_ancestor_of(focused))
+	if (
+		focused == null
+		or not focused.is_visible_in_tree()
+		or movable_panel == null
 	):
-		movable_panel = BottomPanel
-	if movable_panel == null:
 		return 0.0
 
 	var stretch_scale_y := (

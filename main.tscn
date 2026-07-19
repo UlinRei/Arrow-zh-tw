@@ -824,36 +824,6 @@ theme_type_variation = &"Margin16"
 layout_mode = 2
 theme_type_variation = &"BoxGap8"
 
-[node name="Header" type="HBoxContainer" parent="Overlays/Control/AndroidContext/Menu/Margin/Content"]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="Overlays/Control/AndroidContext/Menu/Margin/Content/Header"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Insert"
-vertical_alignment = 1
-
-[node name="Close" type="Button" parent="Overlays/Control/AndroidContext/Menu/Margin/Content/Header"]
-custom_minimum_size = Vector2(52, 44)
-layout_mode = 2
-text = "Close"
-
-[node name="NodeScroll" type="ScrollContainer" parent="Overlays/Control/AndroidContext/Menu/Margin/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="NodeButtons" type="VBoxContainer" parent="Overlays/Control/AndroidContext/Menu/Margin/Content/NodeScroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"BoxGap8"
-
-[node name="Tools" type="HBoxContainer" parent="Overlays/Control/AndroidContext/Menu/Margin/Content"]
-layout_mode = 2
-alignment = 1
-theme_type_variation = &"BoxGap8"
-
 [node name="FloatingTools" type="CanvasLayer" parent="." unique_id=176264705]
 
 [node name="Control" type="Control" parent="FloatingTools" unique_id=949565009]

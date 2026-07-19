@@ -35,72 +35,120 @@ const CLIPBOARD_MODE = Settings.CLIPBOARD_MODE
 var _NODE_INSERT_LIST_FULL = []
 var _ANDROID_OVERLAY: Control
 var _ANDROID_PANEL: PanelContainer
-var _ANDROID_NODE_BUTTONS: VBoxContainer
-var _ANDROID_TOOL_ROW: HBoxContainer
+var _ANDROID_CONTENT: VBoxContainer
+var _android_list_touch_index := -1
+var _android_list_touch_origin := Vector2.ZERO
+var _android_list_last_position := Vector2.ZERO
+var _android_list_velocity := 0.0
+var _android_list_dragging := false
+var _android_suppress_mouse_until_ms := -1000
 
 func _ready() -> void:
 	register_connections()
 	if OS.has_feature("android"):
-		_setup_android_node_buttons()
+		_setup_android_context_menu()
 	pass
 
-func _setup_android_node_buttons() -> void:
+func _setup_android_context_menu() -> void:
 	_ANDROID_OVERLAY = get_node_or_null(
 		"/root/Main/Overlays/Control/AndroidContext"
 	) as Control
 	_ANDROID_PANEL = get_node_or_null(
 		"/root/Main/Overlays/Control/AndroidContext/Menu"
 	) as PanelContainer
-	_ANDROID_NODE_BUTTONS = get_node_or_null(
-		"/root/Main/Overlays/Control/AndroidContext/Menu/Margin/Content/NodeScroll/NodeButtons"
+	_ANDROID_CONTENT = get_node_or_null(
+		"/root/Main/Overlays/Control/AndroidContext/Menu/Margin/Content"
 	) as VBoxContainer
-	_ANDROID_TOOL_ROW = get_node_or_null(
-		"/root/Main/Overlays/Control/AndroidContext/Menu/Margin/Content/Tools"
-	) as HBoxContainer
-	var close_button := get_node_or_null(
-		"/root/Main/Overlays/Control/AndroidContext/Menu/Margin/Content/Header/Close"
-	) as Button
 	var shield := get_node_or_null(
 		"/root/Main/Overlays/Control/AndroidContext/Shield"
 	) as Control
 	if (
 		_ANDROID_OVERLAY == null
 		or _ANDROID_PANEL == null
-		or _ANDROID_NODE_BUTTONS == null
-		or _ANDROID_TOOL_ROW == null
+		or _ANDROID_CONTENT == null
 	):
 		push_error("Android context menu scene controls are missing.")
 		return
-	if close_button != null:
-		close_button.pressed.connect(_ANDROID_OVERLAY.hide)
+	# Reuse the actual desktop controls so mouse and keyboard selection semantics
+	# (including Ctrl toggle and Shift range selection) stay exactly identical.
+	var types_box := NodeInsertList.get_parent() as VBoxContainer
+	types_box.reparent(_ANDROID_CONTENT, false)
+	EditToolBox.reparent(_ANDROID_CONTENT, false)
+	NodeInsertList.custom_minimum_size = Vector2(360, 240)
+	NodeInsertList.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	set_process_input(true)
+	set_process(true)
+	_configure_android_list_scrollbar.call_deferred()
 	if shield != null:
 		shield.gui_input.connect(_on_android_shield_gui_input)
-	_add_android_tool_button("Copy", CopyNodesButton.icon, "clipboard_push_selection", CLIPBOARD_MODE.COPY)
-	_add_android_tool_button("Cut", CutNodesButton.icon, "clipboard_push_selection", CLIPBOARD_MODE.CUT)
-	_add_android_tool_button("Paste", PasteClipboardButton.icon, "clipboard_pull", null)
-	_add_android_tool_button("Remove", RemoveNodesButton.icon, "remove_selected_nodes", null)
 
 
-func _add_android_tool_button(
-	label: String,
-	icon: Texture2D,
-	request: String,
-	args
-) -> void:
-	var button := Button.new()
-	button.text = tr(label)
-	button.icon = icon
-	button.expand_icon = true
-	button.custom_minimum_size = Vector2(78, 48)
-	button.add_theme_constant_override("icon_max_width", 28)
-	button.pressed.connect(_on_android_tool_pressed.bind(request, args))
-	_ANDROID_TOOL_ROW.add_child(button)
+func _configure_android_list_scrollbar() -> void:
+	await get_tree().process_frame
+	var scroll_bar: VScrollBar = NodeInsertList.get_v_scroll_bar()
+	if scroll_bar != null:
+		# Scrolling remains available through wheel and kinetic touch gestures;
+		# only direct manipulation of the narrow slider is disabled.
+		scroll_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-func _on_android_tool_pressed(request: String, args) -> void:
-	if request == "clipboard_pull":
-		args = _CLICK_POINT_OFFSET
-	_request_mind(request, args, true)
+func _input(event: InputEvent) -> void:
+	if (
+		not OS.has_feature("android")
+		or _ANDROID_OVERLAY == null
+		or not _ANDROID_OVERLAY.visible
+	):
+		return
+	if (
+		event is InputEventMouseButton
+		and Time.get_ticks_msec() <= _android_suppress_mouse_until_ms
+	):
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventScreenTouch:
+		if event.pressed and NodeInsertList.get_global_rect().has_point(event.position):
+			_android_list_touch_index = event.index
+			_android_list_touch_origin = event.position
+			_android_list_last_position = event.position
+			_android_list_velocity = 0.0
+			_android_list_dragging = false
+		elif not event.pressed and event.index == _android_list_touch_index:
+			if _android_list_dragging:
+				_android_suppress_mouse_until_ms = Time.get_ticks_msec() + 180
+				get_viewport().set_input_as_handled()
+			_android_list_touch_index = -1
+		return
+	if event is InputEventScreenDrag and event.index == _android_list_touch_index:
+		var total_drag: Vector2 = event.position - _android_list_touch_origin
+		if not _android_list_dragging and absf(total_drag.y) >= 10.0:
+			_android_list_dragging = true
+		if _android_list_dragging:
+			var scroll_bar: VScrollBar = NodeInsertList.get_v_scroll_bar()
+			var drag_delta: float = (
+				event.position.y - _android_list_last_position.y
+			)
+			if scroll_bar != null:
+				scroll_bar.value -= drag_delta
+			_android_list_velocity = -event.velocity.y
+			_android_list_last_position = event.position
+			get_viewport().set_input_as_handled()
+
+
+func _process(delta: float) -> void:
+	if not OS.has_feature("android") or _android_list_touch_index >= 0:
+		return
+	if absf(_android_list_velocity) < 8.0:
+		_android_list_velocity = 0.0
+		return
+	var scroll_bar: VScrollBar = NodeInsertList.get_v_scroll_bar()
+	if scroll_bar == null:
+		return
+	scroll_bar.value += _android_list_velocity * delta
+	_android_list_velocity = move_toward(
+		_android_list_velocity,
+		0.0,
+		2200.0 * delta
+	)
 
 func register_connections() -> void:
 	self.about_to_popup.connect(self._on_about_to_popup)
@@ -132,7 +180,10 @@ func show_up(on_position:Vector2, offset:Vector2, quick_insertion = null) -> voi
 	if OS.has_feature("android"):
 		if _ANDROID_OVERLAY == null or _ANDROID_PANEL == null:
 			return
-		_update_android_tool_row()
+		NodeInsertFilterInput.clear()
+		NodeInsertList.deselect_all()
+		reset_quick_edit_buttons()
+		disable_insert_button_if_nothing_is_there()
 		_ANDROID_OVERLAY.show()
 		_position_android_overlay()
 		_refresh_android_overlay.call_deferred()
@@ -155,32 +206,34 @@ func _position_android_overlay() -> void:
 	)
 	_ANDROID_PANEL.custom_minimum_size = desired_size
 	_ANDROID_PANEL.size = desired_size
-	_ANDROID_PANEL.position = (viewport_size - desired_size) * 0.5
+	var tap_position: Vector2 = _ANDROID_OVERLAY.to_local(
+		_CLICK_POINT_POSITION
+	)
+	var desired_position: Vector2 = tap_position - desired_size * 0.5
+	var edge_margin := 16.0
+	_ANDROID_PANEL.position = Vector2(
+		clampf(
+			desired_position.x,
+			edge_margin,
+			maxf(edge_margin, viewport_size.x - desired_size.x - edge_margin)
+		),
+		clampf(
+			desired_position.y,
+			edge_margin,
+			maxf(edge_margin, viewport_size.y - desired_size.y - edge_margin)
+		)
+	)
 
 
 func _refresh_android_overlay() -> void:
 	for attempt in range(30):
 		try_cache_node_type_list_from_mind(false)
 		if _NODE_INSERT_LIST_FULL.size() > 0:
-			_populate_android_node_buttons()
+			filter_node_insert_list_items_view()
 			await get_tree().process_frame
 			_position_android_overlay()
 			return
 		await get_tree().process_frame
-
-
-func _update_android_tool_row() -> void:
-	if _ANDROID_TOOL_ROW == null:
-		return
-	_ANDROID_TOOL_ROW.visible = not _QUICK_INSERT_MODE
-	var has_selection: bool = Grid._ALREADY_SELECTED_NODE_IDS.size() > 0
-	var clipboard_available: bool = Main.Mind.clipboard_available()
-	for index in _ANDROID_TOOL_ROW.get_child_count():
-		var button := _ANDROID_TOOL_ROW.get_child(index) as Button
-		if index == 2:
-			button.disabled = not clipboard_available
-		else:
-			button.disabled = not has_selection
 
 func _on_about_to_popup() -> void:
 	# On Android the main mind may finish initialization before this panel's
@@ -204,32 +257,9 @@ func _refresh_android_node_type_list() -> void:
 		if Main.Mind && Main.Mind.NODE_TYPES_LIST.size() > 0:
 			_NODE_INSERT_LIST_FULL = Main.Mind.NODE_TYPES_LIST.duplicate(true)
 			filter_node_insert_list_items_view()
-			_populate_android_node_buttons()
 			_fit_android_popup_to_viewport.call_deferred()
 			return
 		await get_tree().process_frame
-
-func _populate_android_node_buttons() -> void:
-	if _ANDROID_NODE_BUTTONS == null:
-		return
-	for child in _ANDROID_NODE_BUTTONS.get_children():
-		child.free()
-	var restricted_items := get_restricted_types()
-	for item_type in _NODE_INSERT_LIST_FULL:
-		if restricted_items.has(item_type):
-			continue
-		var item_details = _NODE_INSERT_LIST_FULL[item_type]
-		var button := Button.new()
-		button.text = item_details.text
-		button.icon = item_details.icon
-		button.expand_icon = true
-		button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size = Vector2(280, 54)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.add_theme_constant_override("icon_max_width", 40)
-		button.pressed.connect(_on_android_node_type_pressed.bind(item_details))
-		_ANDROID_NODE_BUTTONS.add_child(button)
 
 
 func _on_android_shield_gui_input(event: InputEvent) -> void:
@@ -241,20 +271,8 @@ func _on_android_shield_gui_input(event: InputEvent) -> void:
 			and event.pressed
 		)
 	):
+		_ANDROID_OVERLAY.accept_event()
 		_ANDROID_OVERLAY.hide()
-
-func _on_android_node_type_pressed(item_details: Dictionary) -> void:
-	if _QUICK_INSERT_MODE:
-		_request_mind("quick_insert_node", {
-			"node": item_details.type,
-			"offset": _CLICK_POINT_OFFSET,
-			"connection": _QUICK_INSERT_TARGET,
-		}, true)
-	else:
-		_request_mind("insert_node", {
-			"nodes": [item_details.type],
-			"offset": _CLICK_POINT_OFFSET,
-		}, true)
 
 func _on_window_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -300,9 +318,7 @@ func disable_insert_button_if_nothing_is_there(force_disabled:bool = false) -> v
 func set_quick_insert_mode(target = null) -> void:
 	_QUICK_INSERT_MODE = (target is Array && target.size() == 3)
 	_QUICK_INSERT_TARGET = (target if _QUICK_INSERT_MODE else null)
-	NodeInsertFilterForm.set_visible(
-		not _QUICK_INSERT_MODE and not OS.has_feature("android")
-	)
+	NodeInsertFilterForm.set_visible(not _QUICK_INSERT_MODE)
 	EditToolBox.set_visible( ! _QUICK_INSERT_MODE )
 	NodeInsertList.set_select_mode( ItemList.SELECT_SINGLE if _QUICK_INSERT_MODE else ItemList.SELECT_MULTI )
 	NodeInsertList.set_default_cursor_shape(
