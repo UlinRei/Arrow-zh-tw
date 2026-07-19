@@ -33,7 +33,7 @@ jobs:
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install Android SDK packages
         shell: bash
@@ -87,7 +87,7 @@ jobs:
           done
 
       - name: Restore test signing key
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.android/debug.keystore
           key: arrow-android-debug-keystore-v1
