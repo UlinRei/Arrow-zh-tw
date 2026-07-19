@@ -213,12 +213,15 @@ func _position_android_overlay() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	_ANDROID_OVERLAY.position = Vector2.ZERO
 	_ANDROID_OVERLAY.size = viewport_size
+	var center := _ANDROID_PANEL.get_parent() as Control
+	if center != null:
+		center.position = Vector2.ZERO
+		center.size = viewport_size
 	var desired_size := Vector2(480.0, 360.0)
 	desired_size = desired_size.min(viewport_size - Vector2.ONE * 32.0)
 	_ANDROID_PANEL.custom_minimum_size = desired_size
-	# The parent CenterContainer owns positioning, so layout recalculation can no
-	# longer snap the touch menu back to the upper-left corner.
-	_ANDROID_PANEL.reset_size()
+	_ANDROID_PANEL.size = desired_size
+	_ANDROID_PANEL.position = (viewport_size - desired_size) * 0.5
 
 
 func _refresh_android_overlay() -> void:

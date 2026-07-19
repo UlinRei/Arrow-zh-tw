@@ -806,8 +806,10 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 	):
 		if (
 			event.pressed
-			and AndroidContextPanel != null
-			and not AndroidContextPanel.get_global_rect().has_point(event.position)
+			and (
+				AndroidContextPanel == null
+				or not AndroidContextPanel.get_global_rect().has_point(event.position)
+			)
 		):
 			AndroidContextOverlay.hide()
 			_touch_points.erase(event.index)
