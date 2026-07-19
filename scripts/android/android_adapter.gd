@@ -53,8 +53,6 @@ var EditorPanel: Control
 var InspectorToggleButton: Button
 var BottomQuery: Control
 var BottomPanel: Control
-var TouchShieldLayer: CanvasLayer
-var TouchShield: Control
 
 var _setup_complete := false
 var _keyboard_shift := 0.0
@@ -156,7 +154,6 @@ func _setup_android() -> void:
 	BottomPanel = get_node_or_null(
 		"/root/Main/Editor/Bottom"
 	) as Control
-	_setup_touch_shield()
 
 	DisplayServer.screen_set_orientation(
 		DisplayServer.SCREEN_SENSOR_LANDSCAPE
@@ -173,36 +170,6 @@ func _setup_android() -> void:
 	Main.UI.call_deferred("_apply_android_inspector_layout")
 	if InspectorToggleButton != null:
 		InspectorToggleButton.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-
-func _setup_touch_shield() -> void:
-	# GraphEdit processes touch selection internally before its script's
-	# _gui_input callback can reject it. A transparent GUI layer consumes only
-	# touch GUI events while raw touch remains available to this adapter.
-	TouchShieldLayer = CanvasLayer.new()
-	TouchShieldLayer.name = "AndroidTouchShield"
-	TouchShieldLayer.layer = 1
-	Main.add_child(TouchShieldLayer)
-	TouchShield = Control.new()
-	TouchShield.name = "CanvasTouchShield"
-	TouchShield.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	TouchShield.gui_input.connect(_on_touch_shield_gui_input)
-	TouchShieldLayer.add_child(TouchShield)
-	_sync_touch_shield()
-
-
-func _sync_touch_shield() -> void:
-	if TouchShield == null or Grid == null:
-		return
-	var grid_rect := Grid.get_global_rect()
-	TouchShield.position = grid_rect.position + Vector2(0.0, 42.0)
-	TouchShield.size = Vector2(grid_rect.size.x, maxf(0.0, grid_rect.size.y - 42.0))
-
-
-func _on_touch_shield_gui_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch or event is InputEventScreenDrag:
-		TouchShield.accept_event()
-
 
 func _configure_optional_android_controls() -> void:
 	var preferences_panel := get_node_or_null(
@@ -509,16 +476,6 @@ func _input(event: InputEvent) -> void:
 func handle_raw_touch_input(event: InputEvent) -> void:
 	if not _setup_complete:
 		return
-	if (
-		TouchShield != null
-		and (event is InputEventScreenTouch or event is InputEventScreenDrag)
-	):
-		TouchShield.mouse_filter = Control.MOUSE_FILTER_STOP
-		if event is InputEventScreenTouch and not event.pressed:
-			TouchShield.set_deferred(
-				"mouse_filter",
-				Control.MOUSE_FILTER_IGNORE
-			)
 
 	if event is InputEventScreenTouch:
 		_handle_screen_touch(event)
@@ -764,6 +721,12 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 
 func _handle_pan_gesture(event: InputEventPanGesture) -> void:
 	if not Grid.get_global_rect().has_point(event.position):
+		return
+	if _touch_points.size() >= 2:
+		if _canvas_mode != CanvasMode.PINCH:
+			_begin_pinch()
+		_update_pinch()
+		get_viewport().set_input_as_handled()
 		return
 	# Android reports two-finger navigation as PanGesture even when raw touch
 	# drag events are not emitted. Move the graph opposite the finger delta so
@@ -1074,7 +1037,6 @@ func _clear_selection() -> void:
 func _process(delta: float) -> void:
 	if not _setup_complete:
 		return
-	_sync_touch_shield()
 
 	if _canvas_mode == CanvasMode.PENDING:
 		_canvas_elapsed += delta
