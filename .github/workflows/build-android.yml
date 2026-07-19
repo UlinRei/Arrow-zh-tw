@@ -1,0 +1,144 @@
+name: Build Android Test APK
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-test-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7
+  GODOT_STATUS: stable
+  APK_NAME: Arrow-3.1.0-ZhTW-1-Android-arm64-debug.apk
+
+jobs:
+  build-android:
+    name: Android arm64 test APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platform-tools" \
+            "build-tools;35.0.1" \
+            "platforms;android-35"
+
+      - name: Download Godot and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          release="${GODOT_VERSION}-${GODOT_STATUS}"
+          base_url="https://github.com/godotengine/godot/releases/download/${release}"
+
+          curl --fail --location \
+            "${base_url}/Godot_v${release}_linux.x86_64.zip" \
+            --output godot.zip
+          curl --fail --location \
+            "${base_url}/Godot_v${release}_export_templates.tpz" \
+            --output templates.zip
+
+          mkdir -p .godot-bin .templates
+          unzip -q godot.zip -d .godot-bin
+          mv ".godot-bin/Godot_v${release}_linux.x86_64" .godot-bin/godot
+          chmod +x .godot-bin/godot
+
+          template_dir="${HOME}/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}"
+          mkdir -p "${template_dir}"
+          unzip -q templates.zip -d .templates
+          cp -R .templates/templates/. "${template_dir}/"
+
+      - name: Configure Godot Android paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/.config/godot"
+          for settings_file in \
+            "${HOME}/.config/godot/editor_settings-4.tres" \
+            "${HOME}/.config/godot/editor_settings-4.7.tres"
+          do
+            cat > "${settings_file}" <<EOF
+          [gd_resource format=3]
+
+          [resource]
+          export/android/android_sdk_path = "${ANDROID_HOME}"
+          export/android/java_sdk_path = "${JAVA_HOME}"
+          EOF
+          done
+
+      - name: Restore test signing key
+        uses: actions/cache@v5
+        with:
+          path: ~/.android/debug.keystore
+          key: arrow-android-debug-keystore-v1
+
+      - name: Create test signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          debug_keystore="${HOME}/.android/debug.keystore"
+          mkdir -p "$(dirname "${debug_keystore}")"
+
+          if [[ ! -f "${debug_keystore}" ]]; then
+            keytool -genkeypair -noprompt \
+              -keystore "${debug_keystore}" \
+              -storepass android \
+              -keypass android \
+              -alias androiddebugkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          {
+            echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=${debug_keystore}"
+            echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey"
+            echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android"
+          } >> "${GITHUB_ENV}"
+
+      - name: Import project
+        shell: bash
+        run: |
+          .godot-bin/godot --headless --editor --path . --quit
+
+      - name: Export Android test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/android
+          .godot-bin/godot \
+            --headless \
+            --path . \
+            --export-debug Android \
+            "build/android/${APK_NAME}"
+          test -s "build/android/${APK_NAME}"
+          ls -lh "build/android/${APK_NAME}"
+
+      - name: Upload Android test APK
+        uses: actions/upload-artifact@v7
+        with:
+          path: build/android/${{ env.APK_NAME }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
