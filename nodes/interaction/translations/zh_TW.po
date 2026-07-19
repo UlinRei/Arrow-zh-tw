@@ -9,3 +9,36 @@ msgstr ""
 
 msgid "Interaction"
 msgstr "互動選項"
+
+msgid "INTERACTION_INSPECTOR_FIELD_LINES"
+msgstr "選項"
+
+msgid "INTERACTION_INSPECTOR_MENU_APPEND_NEW_ACTION"
+msgstr "新增選項"
+
+msgid "INTERACTION_INSPECTOR_MENU_EXTRACT_SELECTED"
+msgstr "取出所選選項"
+
+msgid "INTERACTION_INSPECTOR_MENU_REPLACE_SELECTED"
+msgstr "取代所選選項"
+
+msgid "INTERACTION_INSPECTOR_MENU_REMOVE_SELECTED"
+msgstr "移除所選選項"
+
+msgid "INTERACTION_INSPECTOR_MENU_SORT_ACTIONS_AZ"
+msgstr "依字母順序排列選項"
+
+msgid "INTERACTION_INSPECTOR_MENU_MOVE_SELECTED_TOP"
+msgstr "將所選項目移至最前"
+
+msgid "INTERACTION_INSPECTOR_MENU_MOVE_SELECTED_END"
+msgstr "將所選項目移至最後"
+
+msgid "INTERACTION_INSPECTOR_MENU_MOVE_SELECTED_UP"
+msgstr "將所選項目上移"
+
+msgid "INTERACTION_INSPECTOR_MENU_MOVE_SELECTED_DOWN"
+msgstr "將所選項目下移"
+
+msgid "INTERACTION_DEFAULT_ACTION"
+msgstr "繼續前進！"

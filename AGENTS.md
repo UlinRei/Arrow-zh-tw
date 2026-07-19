@@ -36,19 +36,19 @@
 
 ## Godot 與本機建置
 
-- 專案使用 Godot 4.7 stable，主場景是 `res://main.tscn`。
+- 專案使用 Godot 4.7.1 stable，主場景是 `res://main.tscn`。
 - 修改翻譯、字型、場景或腳本後，先執行 headless editor 匯入：
 
 ```powershell
-& 'G:\Desktop\Godot_v4.7-stable_mono_win64\Godot_v4.7-stable_mono_win64.exe' --headless --editor --path 'O:\Github Repositories\Arrow' --quit
+& 'G:\Desktop\Godot\Godot_v4.7.1-stable_mono_win64.exe' --headless --editor --path 'O:\Github Repositories\Arrow' --quit
 ```
 
-> 本機限定：上述 `G:\Desktop\Godot_v4.7-stable_mono_win64\Godot_v4.7-stable_mono_win64.exe` 與 `O:\Github Repositories\Arrow` 路徑只適用於 Ulin 目前這台 Windows 裝置。其他裝置、協作者與 fork 使用者必須使用各自的 Godot 4.7 stable 執行檔及專案路徑，不得沿用這組絕對路徑。
+> 本機限定：上述 `G:\Desktop\Godot\Godot_v4.7.1-stable_mono_win64.exe` 與 `O:\Github Repositories\Arrow` 路徑只適用於 Ulin 目前這台 Windows 裝置。其他裝置、協作者與 fork 使用者必須使用各自的 Godot 4.7.1 stable 執行檔及專案路徑，不得沿用這組絕對路徑。
 
 - Windows release 建置命令：
 
 ```powershell
-& 'G:\Desktop\Godot_v4.7-stable_mono_win64\Godot_v4.7-stable_mono_win64.exe' --headless --path 'O:\Github Repositories\Arrow' --export-release 'Windows' 'O:\Github Repositories\Arrow\build\windows\Arrow.exe'
+& 'G:\Desktop\Godot\Godot_v4.7.1-stable_mono_win64.exe' --headless --path 'O:\Github Repositories\Arrow' --export-release 'Windows' 'O:\Github Repositories\Arrow\build\windows\Arrow.exe'
 ```
 
 - Windows 成品需要同時保留 `Arrow.exe` 與 `Arrow.pck`。

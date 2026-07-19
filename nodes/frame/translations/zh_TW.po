@@ -9,3 +9,24 @@ msgstr ""
 
 msgid "Frame"
 msgstr "框架"
+
+msgid "FRAME_INSPECTOR_FIELD_COLOR"
+msgstr "顏色"
+
+msgid "FRAME_INSPECTOR_FIELD_LABEL"
+msgstr "標籤"
+
+msgid "FRAME_INSPECTOR_FIELD_WIDTH"
+msgstr "寬度"
+
+msgid "FRAME_INSPECTOR_FIELD_HEIGHT"
+msgstr "高度"
+
+msgid "FRAME_CONSOLE_LABEL_UNSET_MSG"
+msgstr "無標籤"
+
+msgid "FRAME_CONSOLE_NO_NOTES_MSG"
+msgstr "框架沒有額外資訊。"
+
+msgid "FRAME_NODE_NO_LABEL_MSG"
+msgstr "沒有標籤！"

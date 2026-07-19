@@ -9,3 +9,33 @@ msgstr ""
 
 msgid "Monolog"
 msgstr "獨白"
+
+msgid "MONOLOG_CONSOLE_CONTINUE_BTN"
+msgstr "繼續"
+
+msgid "MONOLOG_INSPECTOR_FIELD_CHARACTER"
+msgstr "角色"
+
+msgid "MONOLOG_INSPECTOR_APPLY_GLOBAL_CHAR_FILTERS_TOOLTIP"
+msgstr "套用角色屬性面板中設定的全域篩選條件。目前節點使用的角色與匿名角色一定會列出。"
+
+msgid "MONOLOG_INSPECTOR_FIELD_MONOLOG"
+msgstr "獨白"
+
+msgid "MONOLOG_INSPECTOR_FIELD_BRIEF"
+msgstr "摘要"
+
+msgid "MONOLOG_INSPECTOR_BRIEF_PICK_BTN_TOOLTIP"
+msgstr "將摘要長度設到文字游標目前的位置。"
+
+msgid "MONOLOG_INSPECTOR_OPT_AUTO_PLAY"
+msgstr "自動播放"
+
+msgid "MONOLOG_INSPECTOR_OPT_CLEAR_PAGE"
+msgstr "清除頁面"
+
+msgid "MONOLOG_CONSOLE_UNSET_MSG"
+msgstr "沒有獨白內容。"
+
+msgid "ANONYMOUS_CHARACTER_NAME"
+msgstr "匿名"

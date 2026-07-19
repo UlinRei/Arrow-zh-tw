@@ -9,6 +9,8 @@ const CONFIG_FILE_NAME = Settings.CONFIG_FILE_NAME
 const CONFIG_FILES_SUB_PATH_DIR_PRIORITY = Settings.CONFIG_FILES_SUB_PATH_DIR_PRIORITY
 
 class ConfigHandler :
+	const DESKTOP_DEFAULT_HISTORY_SIZE := 50
+	const ANDROID_DEFAULT_HISTORY_SIZE := 30
 	
 	var Main
 
@@ -19,6 +21,8 @@ class ConfigHandler :
 	
 	func _init(main) -> void:
 		Main = main
+		if OS.has_feature("android"):
+			DEFAULT.history_size = ANDROID_DEFAULT_HISTORY_SIZE
 		# For HTML5 exports, we need to override the configuration base to the only writable path:
 		if Html5Helpers.Utils.is_browser():
 			_CONFIG_FILE_BASE_DIR = "user://"
@@ -26,14 +30,14 @@ class ConfigHandler :
 	
 	# default configurations
 	# CAUTION! this is the CONSTANT default configuration, used in config file generation, resets, etc.
-	const DEFAULT = {
+	var DEFAULT = {
 		"appearance_theme": 0,
 		"appearance_font": "auto",
 		"language": "en",
 		"app_local_dir_path": "user://", # (IMPORTANT: Only `user://` works in `HTML5` exports)
 		"window": null,
 		"panels": null,
-		"history_size": 0,
+		"history_size": DESKTOP_DEFAULT_HISTORY_SIZE,
 	}
 	# active configurations
 	var TEMPORARY = {} # middle/preview state (active but not confirmed yet)

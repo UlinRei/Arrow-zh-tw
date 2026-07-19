@@ -9,3 +9,99 @@ msgstr ""
 
 msgid "User Input"
 msgstr "使用者輸入"
+
+msgid "USER_INPUT_CONSOLE_STR_VALUE_PLACEHOLDER"
+msgstr "文字值"
+
+msgid "USER_INPUT_CONSOLE_BOOL_SELECTOR_FALSE"
+msgstr "否"
+
+msgid "USER_INPUT_CONSOLE_BOOL_SELECTOR_TRUE"
+msgstr "是"
+
+msgid "USER_INPUT_CONSOLE_INVALID_INPUT_ERR"
+msgstr "* 輸入無效！"
+
+msgid "USER_INPUT_CONSOLE_ACT_SKIP"
+msgstr "略過"
+
+msgid "USER_INPUT_CONSOLE_ACT_SUBMIT"
+msgstr "送出"
+
+msgid "USER_INPUT_INSPECTOR_FIELD_PROMPT"
+msgstr "詢問玩家"
+
+msgid "USER_INPUT_INSPECTOR_FIELD_TARGET"
+msgstr "將使用者輸入存入"
+
+msgid "USER_INPUT_INSPECTOR_APPLY_GLOBAL_VAR_FILTERS"
+msgstr "套用變數屬性面板中設定的全域篩選條件。目前節點使用的變數一定會列出。"
+
+msgid "USER_INPUT_INSPECTOR_FIELD_CUSTOMIZE"
+msgstr "自訂控制項"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_STR_PATTERN"
+msgstr "模式"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_STR_PATTERN_PLACEHOLDER"
+msgstr "正規表示式"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_STR_DEFAULT"
+msgstr "預設值"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_STR_DEFAULT_PLACEHOLDER"
+msgstr "預設內容"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_STR_EXTRA"
+msgstr "附加資訊"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_STR_EXTRA_PLACEHOLDER"
+msgstr "預留文字、提示等"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_NUM_MIN"
+msgstr "最小值"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_NUM_MAX"
+msgstr "最大值"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_NUM_STEP"
+msgstr "增量"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_NUM_VALUE"
+msgstr "值"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_BOOL_FALSE"
+msgstr "否"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_BOOL_FALSE_PLACEHOLDER"
+msgstr "否定"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_BOOL_TRUE"
+msgstr "是"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_BOOL_TRUE_PLACEHOLDER"
+msgstr "肯定"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_BOOL_DEFAULT"
+msgstr "預設值"
+
+msgid "USER_INPUT_INSPECTOR_CUSTOM_BOOL_DEFAULT_OPT_TRUE"
+msgstr "預設為是"
+
+msgid "USER_INPUT_CONSOLE_PROMPT_UNSET_MSG"
+msgstr "沒有問題內容！"
+
+msgid "USER_INPUT_CONSOLE_NO_VARIABLE_MSG"
+msgstr "變數未設定或無效！"
+
+msgid "USER_INPUT_INSPECTOR_NO_VARIABLE_TXT"
+msgstr "沒有可用的變數"
+
+msgid "USER_INPUT_NODE_NO_PROMPT_TXT"
+msgstr "未設定"
+
+msgid "USER_INPUT_NODE_NO_TARGET_TYPE"
+msgstr "空值"
+
+msgid "USER_INPUT_NODE_NO_TARGET_NAME"
+msgstr "未定義"

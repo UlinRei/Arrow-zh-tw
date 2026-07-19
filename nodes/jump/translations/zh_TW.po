@@ -9,3 +9,30 @@ msgstr ""
 
 msgid "Jump"
 msgstr "跳躍"
+
+msgid "JUMP_INSPECTOR_FIELD_REASON"
+msgstr "原因"
+
+msgid "JUMP_INSPECTOR_FIELD_REASON_PLACEHOLDER"
+msgstr "例如：升級、下一個場景……"
+
+msgid "JUMP_INSPECTOR_FIELD_DESTINATION"
+msgstr "目的地"
+
+msgid "JUMP_INSPECTOR_FIELD_DESTINATION_PLACEHOLDER"
+msgstr "節點 UID"
+
+msgid "JUMP_CONSOLE_UNSET_REASON_MSG"
+msgstr "未填寫原因"
+
+msgid "JUMP_CONSOLE_INVALID_MSG"
+msgstr "無效！"
+
+msgid "JUMP_CONSOLE_UNSET_TARGET_MSG"
+msgstr "未設定"
+
+msgid "JUMP_NODE_UNSET_REASON_MSG"
+msgstr "未填寫原因"
+
+msgid "JUMP_NODE_UNSET_TARGET_NAME"
+msgstr "未設定"

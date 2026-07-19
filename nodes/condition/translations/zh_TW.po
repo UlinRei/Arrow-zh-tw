@@ -9,3 +9,105 @@ msgstr ""
 
 msgid "Condition"
 msgstr "條件判斷"
+
+msgid "CONDITION_CONSOLE_FALSE"
+msgstr "否"
+
+msgid "CONDITION_CONSOLE_TRUE"
+msgstr "是"
+
+msgid "CONDITION_INSPECTOR_CHECK_FOR_VAR"
+msgstr "檢查變數"
+
+msgid "CONDITION_INSPECTOR_APPLY_GLOBAL_VAR_FILTERS_TOOLTIP"
+msgstr "套用變數屬性面板中設定的全域篩選條件。目前節點使用的變數一定會列出。"
+
+msgid "CONDITION_INSPECTOR_IF"
+msgstr "若"
+
+msgid "CONDITION_INSPECTOR_COMPARING_TO"
+msgstr "比較對象"
+
+msgid "CONDITION_INSPECTOR_FALSE"
+msgstr "否"
+
+msgid "CONDITION_INSPECTOR_TRUE"
+msgstr "是"
+
+msgid "CONDITION_INSPECTOR_RHS_STR_PLACEHOLDER"
+msgstr "文字值"
+
+msgid "CONDITION_NODE_FALSE"
+msgstr "否"
+
+msgid "CONDITION_NODE_TRUE"
+msgstr "是"
+
+msgid "CONDITION_CONSOLE_UNSET_DATA_ERR"
+msgstr "未設定！"
+
+msgid "CONDITION_INSPECTOR_OPERATOR_ITEM_TEXT_TEMPLATE"
+msgstr "{text}（{sign}）"
+
+msgid "CONDITION_INSPECTOR_COMPARE_TO_SELF_INITIAL"
+msgstr "自身（初始值）"
+
+msgid "CONDITION_INSPECTOR_NO_VARIABLE"
+msgstr "沒有可用的變數"
+
+msgid "CONDITION_NODE_UNSET_OR_INVALID"
+msgstr "未設定！"
+
+msgid "CONDITION_OP_EQ_NUM"
+msgstr "等於"
+
+msgid "CONDITION_OP_NQ_NUM"
+msgstr "不等於"
+
+msgid "CONDITION_OP_GT"
+msgstr "大於"
+
+msgid "CONDITION_OP_GTE"
+msgstr "大於或等於"
+
+msgid "CONDITION_OP_LS"
+msgstr "小於"
+
+msgid "CONDITION_OP_LSE"
+msgstr "小於或等於"
+
+msgid "CONDITION_OP_RGX"
+msgstr "符合正規表示式"
+
+msgid "CONDITION_OP_CT"
+msgstr "包含子字串"
+
+msgid "CONDITION_OP_CTS"
+msgstr "包含子字串（區分大小寫）"
+
+msgid "CONDITION_OP_BGN"
+msgstr "開頭為"
+
+msgid "CONDITION_OP_END"
+msgstr "結尾為"
+
+msgid "CONDITION_OP_EQL"
+msgstr "長度相等"
+
+msgid "CONDITION_OP_LNG"
+msgstr "較長"
+
+msgid "CONDITION_OP_SHR"
+msgstr "較短"
+
+msgid "CONDITION_OP_EQ_BOOL"
+msgstr "相符"
+
+msgid "CONDITION_OP_NQ_BOOL"
+msgstr "不相符"
+
+msgid "CONDITION_STATEMENT_RHS_IS_LHS_INIT"
+msgstr "自身（初始 `%s`）"
+
+msgid "CONDITION_RHS_INVALID"
+msgstr "[無效]"

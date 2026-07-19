@@ -37,7 +37,9 @@ func update_character(profile:Dictionary) -> void:
 	pass
 
 func set_character_anonymous() -> void:
-	update_character( ANONYMOUS_CHARACTER )
+	var profile := ANONYMOUS_CHARACTER.duplicate()
+	profile.name = tr("ANONYMOUS_CHARACTER_NAME")
+	update_character(profile)
 	pass
 
 func _update_node(data:Dictionary) -> void:

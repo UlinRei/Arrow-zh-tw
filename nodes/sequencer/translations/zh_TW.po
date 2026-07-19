@@ -9,3 +9,9 @@ msgstr ""
 
 msgid "Sequencer"
 msgstr "循序執行"
+
+msgid "SEQUENCER_INSPECTOR_FIELD_SEQ_LENGTH"
+msgstr "序列長度"
+
+msgid "SEQUENCER_INSPECTOR_HANDLE_WITH_CARE"
+msgstr "* 請謹慎使用！"

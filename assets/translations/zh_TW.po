@@ -32,16 +32,24 @@ msgid "WELCOME_MESSAGE"
 msgstr ""
 "[b]歡迎使用 Arrow 3.x-ZhTW[/b]\n"
 "\n"
-"Arrow 是一套免費、開放原始碼且功能豐富的[i]遊戲敘事[/i]設計工具，可用來創作[i]互動式非線性故事[/i]。\n"
+"Arrow 是一套免費、開放原始碼且功能豐富的[i]遊戲敘"
+"事[/i]設計工具，可用來創作[i]互動式非線性故事[/"
+"i]。\n"
 "\n"
 "以下是關於網頁版本（沒有中文）的資料存儲說明：\n"
-"Arrow 網頁版會使用瀏覽器儲存空間管理專案。[i]你的資料只會保留在這台裝置上。[/i]\n"
+"Arrow 網頁版會使用瀏覽器儲存空間管理專案。[i]你的"
+"資料只會保留在這台裝置上。[/i]\n"
 "若要匯出專案，請使用：\n"
-"[indent][bgcolor=black][color=white][i][code] Inspector (panel) > Project (tab) > Export [/code][/i][/color][/bgcolor][/indent]\n"
+"[indent][bgcolor=black][color=white][i][code] "
+"Inspector (panel) > Project (tab) > Export [/code]"
+"[/i][/color][/bgcolor][/indent]\n"
 "若要清除應用程式儲存空間，請使用：\n"
-"[indent][bgcolor=black][color=white][i][code] Arrow (menu button; top-left) > Clear [/code][/i][/color][/bgcolor][/indent]\n"
+"[indent][bgcolor=black][color=white][i][code] "
+"Arrow (menu button; top-left) > Clear [/code][/i]"
+"[/color][/bgcolor][/indent]\n"
 "\n"
-"如需更多資訊，請瀏覽官方網站或專案儲存庫。敬祝順心\n"
+"如需更多資訊，請瀏覽官方網站或專案儲存庫。敬祝順"
+"心\n"
 "Mor. H. Golkar 與所有貢獻者"
 
 msgid "Copyright"
@@ -81,7 +89,7 @@ msgid "Follow Language"
 msgstr "跟隨語言"
 
 msgid "Theme Default"
-msgstr "主題預設"
+msgstr "預設主題"
 
 msgid "Browse…"
 msgstr "瀏覽…"
@@ -111,7 +119,8 @@ msgid "Reset"
 msgstr "重設"
 
 msgid "History (Undo/Redo)"
-msgstr "歷史（復原／重做）"
+msgstr ""
+"操作可追溯筆數（撤銷復原用，若操作卡頓建議減少）"
 
 msgid "Size"
 msgstr "筆數"
@@ -230,7 +239,7 @@ msgid "Snapshots"
 msgstr "快照"
 
 msgid "Restore"
-msgstr "復原快照"
+msgstr "還原快照"
 
 msgid "Preview"
 msgstr "預覽"
@@ -365,7 +374,7 @@ msgid "Clear"
 msgstr "清除"
 
 msgid "Back"
-msgstr "返回"
+msgstr "上一步"
 
 msgid "Filter Node Types"
 msgstr "篩選節點類型"
@@ -407,7 +416,7 @@ msgid "Play Selected Node (F7)"
 msgstr "播放選取的節點（F7）"
 
 msgid "Save Document (Ctrl + S)"
-msgstr "儲存文件（Ctrl + S）"
+msgstr "儲存專案（Ctrl + S）"
 
 msgid "Save"
 msgstr "儲存"
@@ -440,7 +449,9 @@ msgid "Are you sure ?!"
 msgstr "確定要繼續嗎？！"
 
 msgid "UNSAVED_CHANGES_WARNING"
-msgstr "專案 `%s` 已被修改。若仍要關閉，尚未儲存的變更將會遺失。"
+msgstr ""
+"專案 `%s` 已被修改。若仍要關閉，尚未儲存的變更將會"
+"遺失。"
 
 msgid "Close Anyway"
 msgstr "仍要關閉"
@@ -448,7 +459,6 @@ msgstr "仍要關閉"
 # ---------------------------------------------
 # scripts/editor/panels/preferences_ald_menu.gd
 # ---------------------------------------------
-
 msgid "ALD_PRESET_USER_DIR"
 msgstr "作業系統預設的應用程式資料目錄"
 
@@ -459,7 +469,7 @@ msgid "Error!"
 msgstr "錯誤！"
 
 msgid "Select an Arrow Document"
-msgstr "選擇 Arrow 文件"
+msgstr "選擇 Arrow 專案"
 
 msgid "Save Document"
 msgstr "儲存文件"
@@ -559,3 +569,58 @@ msgstr "匯出 HTML"
 
 msgid "Export CSV"
 msgstr "匯出 CSV"
+
+msgid "FILTER_REVERSE_TOOLTIP"
+msgstr ""
+"反向篩選\n"
+"（顯示不符合條件的項目。）"
+
+msgid "SORT_AZ_OR_UID_TOOLTIP"
+msgstr ""
+"依字母順序排序\n"
+"（否則依 UID 排序。）"
+
+msgid "SCOPED_QUERY_TOOLTIP"
+msgstr ""
+"限定場景：篩選目前場景\n"
+"（否則搜尋整個專案。）"
+
+msgid "Toggle the visual grid."
+msgstr "切換視覺網格。"
+
+msgid "Toggle snapping to the grid."
+msgstr "切換網格貼齊。"
+
+msgid "Toggle the graph minimap."
+msgstr "切換圖表小地圖。"
+
+msgid "Automatically arrange selected nodes."
+msgstr "自動排列選取的節點。"
+
+msgid "Zoom Reset"
+msgstr "重設縮放"
+
+msgid "Zoom In"
+msgstr "放大"
+
+msgid "Zoom Out"
+msgstr "縮小"
+
+msgid "Unable to Remove!"
+msgstr "無法移除！"
+
+msgid "UNABLE_TO_REMOVE_FROM_GRID"
+msgstr ""
+"至少有一個選取的節點無法移除。\n"
+"為確保流程連續性，當其他資源仍依賴節點時，Arrow 不"
+"允許移除該節點。此外，場景或專案目前使用中的入口節"
+"點也無法移除。"
+
+msgid "Non-removable(s): "
+msgstr "無法移除："
+
+msgid "Hides Console Preserving the State"
+msgstr "隱藏主控台並保留目前狀態"
+
+msgid "Clears Console & State of Play"
+msgstr "清除主控台與遊玩狀態"

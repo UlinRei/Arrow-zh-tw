@@ -9,3 +9,63 @@ msgstr ""
 
 msgid "Generator"
 msgstr "產生器"
+
+msgid "GENERATOR_INSPECTOR_FIELD_FOR"
+msgstr "目標變數"
+
+msgid "GENERATOR_INSPECTOR_APPLY_GLOBAL_VAR_FILTERS_TOOLTIP"
+msgstr "套用變數屬性面板中設定的全域篩選條件。目前節點使用的變數一定會列出。"
+
+msgid "GENERATOR_INSPECTOR_FIELD_GENERATE"
+msgstr "產生"
+
+msgid "GENERATOR_INSPECTOR_FIELD_FROM"
+msgstr "從"
+
+msgid "GENERATOR_INSPECTOR_FIELD_TO"
+msgstr "至"
+
+msgid "GENERATOR_INSPECTOR_RANDOM_INT_NEG"
+msgstr "負數"
+
+msgid "GENERATOR_INSPECTOR_RANDOM_INT_EVEN"
+msgstr "偶數"
+
+msgid "GENERATOR_INSPECTOR_RANDOM_INT_ODD"
+msgstr "奇數"
+
+msgid "GENERATOR_INSPECTOR_RANDOM_ASCII_POOL"
+msgstr "字元集"
+
+msgid "GENERATOR_INSPECTOR_RANDOM_ASCII_POOL_PLACEHOLDER"
+msgstr "ASCII 字元（英數字）"
+
+msgid "GENERATOR_INSPECTOR_RANDOM_ASCII_LENGTH"
+msgstr "長度"
+
+msgid "GENERATOR_INSPECTOR_FROM_STR_SET_POOL"
+msgstr "字串集合"
+
+msgid "GENERATOR_INSPECTOR_NO_VARIABLE_TXT"
+msgstr "沒有可用的變數"
+
+msgid "GENERATOR_NODE_UNSET_OR_INVALID_TARGET_VAR_MSG"
+msgstr "未定義"
+
+msgid "GENERATOR_NODE_UNSET_OR_INVALID_METHOD_MSG"
+msgstr "未設定"
+
+msgid "GENERATOR_NODE_UNSET_OR_INVALID_ARGUMENTS_MSG"
+msgstr "空值／無效"
+
+msgid "GENERATOR_METHOD_RANDOM_INTEGER"
+msgstr "隨機整數"
+
+msgid "GENERATOR_METHOD_RANDOM_ASCII_STRING"
+msgstr "隨機 ASCII 字串"
+
+msgid "GENERATOR_METHOD_FROM_SET_OF_STRINGS"
+msgstr "從字串集合選取"
+
+msgid "GENERATOR_METHOD_RANDOM_BOOLEAN"
+msgstr "隨機布林值"

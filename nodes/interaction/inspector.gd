@@ -296,6 +296,7 @@ func _read_parameters() -> Dictionary:
 
 func _create_new(_new_node_id:int = -1) -> Dictionary:
 	var data = DEFAULT_NODE_DATA.duplicate(true)
+	data.actions = [tr("INTERACTION_DEFAULT_ACTION")]
 	return data
 
 func _translate_internal_ref(data: Dictionary, translation: Dictionary) -> void:

@@ -9,3 +9,63 @@ msgstr ""
 
 msgid "Tag Pass"
 msgstr "標籤判定"
+
+msgid "TAG_PASS_CONSOLE_INVALID"
+msgstr "無效！"
+
+msgid "TAG_PASS_CONSOLE_NOTHING_TO_CHECK"
+msgstr "沒有可檢查的標籤！"
+
+msgid "TAG_PASS_CONSOLE_FALSE"
+msgstr "否"
+
+msgid "TAG_PASS_CONSOLE_TRUE"
+msgstr "是"
+
+msgid "TAG_PASS_INSPECTOR_FIELD_CHARACTER"
+msgstr "角色"
+
+msgid "TAG_PASS_INSPECTOR_APPLY_GLOBAL_CHAR_FILTERS_TOOLTIP"
+msgstr "套用角色屬性面板中設定的全域篩選條件。目前節點使用的角色一定會列出。"
+
+msgid "TAG_PASS_INSPECTOR_FIELD_CHECK"
+msgstr "檢查"
+
+msgid "TAG_PASS_INSPECTOR_NOTHING_TO_CHECK"
+msgstr "沒有可檢查的標籤"
+
+msgid "TAG_PASS_INSPECTOR_FIELD_KEY_PLACEHOLDER"
+msgstr "鍵"
+
+msgid "TAG_PASS_INSPECTOR_FIELD_VALUE_PLACEHOLDER"
+msgstr "值"
+
+msgid "TAG_PASS_INSPECTOR_OPT_KEY_ONLY"
+msgstr "僅檢查鍵"
+
+msgid "TAG_PASS_NODE_UNDEFINED"
+msgstr "未定義！"
+
+msgid "TAG_PASS_NODE_NOTHING_TO_CHECK"
+msgstr "沒有可檢查的標籤！"
+
+msgid "TAG_PASS_NODE_FALSE"
+msgstr "否"
+
+msgid "TAG_PASS_NODE_TRUE"
+msgstr "是"
+
+msgid "TAG_PASS_INSPECTOR_NO_CHARACTER_TXT"
+msgstr "沒有可用的角色"
+
+msgid "TAG_PASS_METHOD_ANY"
+msgstr "任一（OR）"
+
+msgid "TAG_PASS_METHOD_ALL"
+msgstr "全部（AND）"
+
+msgid "TAG_PASS_METHOD_HINT_ANY"
+msgstr "至少一個標籤相符時即通過。"
+
+msgid "TAG_PASS_METHOD_HINT_ALL"
+msgstr "所有標籤都必須相符才會通過。"

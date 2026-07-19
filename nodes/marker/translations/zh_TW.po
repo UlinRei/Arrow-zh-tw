@@ -9,3 +9,15 @@ msgstr ""
 
 msgid "Marker"
 msgstr "標記"
+
+msgid "MARKER_INSPECTOR_FIELD_COLOR"
+msgstr "顏色"
+
+msgid "MARKER_INSPECTOR_FIELD_LABEL"
+msgstr "標籤"
+
+msgid "MARKER_CONSOLE_LABEL_UNSET_MSG"
+msgstr "無標籤"
+
+msgid "MARKER_CONSOLE_NO_NOTES_MSG"
+msgstr "[沒有備註。]"

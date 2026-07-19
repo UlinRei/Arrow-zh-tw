@@ -9,3 +9,12 @@ msgstr ""
 
 msgid "Macro Use"
 msgstr "使用巨集"
+
+msgid "MACRO_USE_INSPECTOR_FIELD_MACRO"
+msgstr "巨集"
+
+msgid "MACRO_USE_INSPECTOR_NONE_AVAILABLE_TXT"
+msgstr "沒有可用的巨集"
+
+msgid "MACRO_USE_NODE_NO_TARGET_MSG"
+msgstr "未選擇巨集"

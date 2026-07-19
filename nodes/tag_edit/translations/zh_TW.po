@@ -9,3 +9,54 @@ msgstr ""
 
 msgid "Tag Edit"
 msgstr "編輯標籤"
+
+msgid "TAG_EDIT_INSPECTOR_FIELD_CHARACTER"
+msgstr "角色"
+
+msgid "TAG_EDIT_INSPECTOR_APPLY_GLOBAL_CHAR_FILTERS_TOOLTIP"
+msgstr "套用角色屬性面板中設定的全域篩選條件。目前節點使用的角色一定會列出。"
+
+msgid "TAG_EDIT_INSPECTOR_FIELD_EDIT"
+msgstr "編輯"
+
+msgid "TAG_EDIT_INSPECTOR_FIELD_KEY_PLACEHOLDER"
+msgstr "鍵（必填且不可空白）"
+
+msgid "TAG_EDIT_INSPECTOR_FIELD_VALUE_PLACEHOLDER"
+msgstr "值"
+
+msgid "TAG_EDIT_INSPECTOR_NO_CHARACTER_TXT"
+msgstr "沒有可用的角色"
+
+msgid "TAG_EDIT_NODE_INVALID_DATA"
+msgstr "無效！"
+
+msgid "TAG_EDIT_METHOD_INSET"
+msgstr "新增"
+
+msgid "TAG_EDIT_METHOD_RESET"
+msgstr "重設"
+
+msgid "TAG_EDIT_METHOD_OVERSET"
+msgstr "覆寫或新增"
+
+msgid "TAG_EDIT_METHOD_OUTSET"
+msgstr "移除鍵值"
+
+msgid "TAG_EDIT_METHOD_UNSET"
+msgstr "移除鍵"
+
+msgid "TAG_EDIT_METHOD_HINT_INSET"
+msgstr "僅在鍵不存在時新增鍵值標籤。"
+
+msgid "TAG_EDIT_METHOD_HINT_RESET"
+msgstr "僅在鍵存在時重設標籤值。"
+
+msgid "TAG_EDIT_METHOD_HINT_OVERSET"
+msgstr "無論鍵是否存在，都覆寫或新增鍵值標籤。"
+
+msgid "TAG_EDIT_METHOD_HINT_OUTSET"
+msgstr "鍵與值皆相符時移除標籤。"
+
+msgid "TAG_EDIT_METHOD_HINT_UNSET"
+msgstr "鍵相符時移除標籤。"

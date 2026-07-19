@@ -70,7 +70,7 @@ func refresh_character_list(select_by_res_id:int = -1) -> void:
 	var item_index := 0
 	if ALLOW_ANONYMOUS_MONOLOGS == true:
 		# (Our conventional `-1` conflicts with the default behavior of `add_item` method, so we use a `..._CONTROL_VALUE`)
-		Character.add_item(ANONYMOUS_CHARACTER.name, ANONYMOUS_UID_CONTROL_VALUE)
+		Character.add_item(tr("ANONYMOUS_CHARACTER_NAME"), ANONYMOUS_UID_CONTROL_VALUE)
 		Character.set_item_metadata(item_index, ANONYMOUS_UID_CONTROL_VALUE)
 		item_index += 1
 	_PROJECT_CHARACTERS_CACHE = Main.Mind.clone_dataset_of("characters")

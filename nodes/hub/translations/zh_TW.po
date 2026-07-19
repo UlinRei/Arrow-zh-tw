@@ -9,3 +9,6 @@ msgstr ""
 
 msgid "Hub"
 msgstr "匯流"
+
+msgid "HUB_INSPECTOR_FIELD_SLOTS_COUNT"
+msgstr "輸入插槽數量"

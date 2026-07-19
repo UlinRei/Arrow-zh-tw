@@ -9,3 +9,63 @@ msgstr ""
 
 msgid "Variable Update"
 msgstr "變數更新"
+
+msgid "VARIABLE_UPDATE_INSPECTOR_FIELD_UPDATE"
+msgstr "更新"
+
+msgid "VARIABLE_UPDATE_INSPECTOR_APPLY_GLOBAL_VAR_FILTERS_TOOLTIP"
+msgstr "套用變數屬性面板中設定的全域篩選條件。目前節點使用的變數一定會列出。"
+
+msgid "VARIABLE_UPDATE_INSPECTOR_FIELD_BY"
+msgstr "方式"
+
+msgid "VARIABLE_UPDATE_INSPECTOR_FIELD_TO"
+msgstr "使用／設為"
+
+msgid "VARIABLE_UPDATE_INSPECTOR_PARAM_STR_PLACEHOLDER"
+msgstr "文字值"
+
+msgid "VARIABLE_UPDATE_INSPECTOR_PARAM_BOOL_TRUE"
+msgstr "是"
+
+msgid "VARIABLE_UPDATE_INSPECTOR_PARAM_BOOL_FALSE"
+msgstr "否"
+
+msgid "VARIABLE_UPDATE_INSPECTOR_NO_VARIABLE"
+msgstr "沒有可用的變數"
+
+msgid "VARIABLE_UPDATE_NODE_UNSET_OR_INVALID_MSG"
+msgstr "未設定"
+
+msgid "VARIABLE_UPDATE_OP_SET_NUM"
+msgstr "設為相等"
+
+msgid "VARIABLE_UPDATE_OP_ADD"
+msgstr "加法"
+
+msgid "VARIABLE_UPDATE_OP_SUB"
+msgstr "減法"
+
+msgid "VARIABLE_UPDATE_OP_DIV"
+msgstr "除法"
+
+msgid "VARIABLE_UPDATE_OP_REM"
+msgstr "餘數"
+
+msgid "VARIABLE_UPDATE_OP_MUL"
+msgstr "乘法"
+
+msgid "VARIABLE_UPDATE_OP_EXP"
+msgstr "次方"
+
+msgid "VARIABLE_UPDATE_OP_ABS"
+msgstr "絕對值"
+
+msgid "VARIABLE_UPDATE_OP_SET_STR"
+msgstr "設定"
+
+msgid "VARIABLE_UPDATE_OP_SET_BOOL"
+msgstr "設定"
+
+msgid "VARIABLE_UPDATE_OP_NEG"
+msgstr "設為相反值"

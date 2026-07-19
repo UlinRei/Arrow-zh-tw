@@ -9,3 +9,48 @@ msgstr ""
 
 msgid "Dialog"
 msgstr "對話"
+
+msgid "DIALOG_INSPECTOR_FIELD_CHARACTER"
+msgstr "角色"
+
+msgid "DIALOG_INSPECTOR_APPLY_GLOBAL_CHAR_FILTERS_TOOLTIP"
+msgstr "套用角色屬性面板中設定的全域篩選條件。目前節點使用的角色與匿名角色一定會列出。"
+
+msgid "DIALOG_INSPECTOR_FIELD_LINES"
+msgstr "台詞"
+
+msgid "DIALOG_INSPECTOR_OPT_PLAYABLE"
+msgstr "玩家可選"
+
+msgid "DIALOG_INSPECTOR_MENU_APPEND_NEW_LINE"
+msgstr "新增台詞"
+
+msgid "DIALOG_INSPECTOR_MENU_EXTRACT_SELECTED"
+msgstr "取出所選台詞"
+
+msgid "DIALOG_INSPECTOR_MENU_REPLACE_SELECTED"
+msgstr "取代所選台詞"
+
+msgid "DIALOG_INSPECTOR_MENU_REMOVE_SELECTED"
+msgstr "移除所選台詞"
+
+msgid "DIALOG_INSPECTOR_MENU_SORT_LINES_AZ"
+msgstr "依字母順序排列台詞"
+
+msgid "DIALOG_INSPECTOR_MENU_MOVE_SELECTED_TOP"
+msgstr "將所選項目移至最前"
+
+msgid "DIALOG_INSPECTOR_MENU_MOVE_SELECTED_END"
+msgstr "將所選項目移至最後"
+
+msgid "DIALOG_INSPECTOR_MENU_MOVE_SELECTED_UP"
+msgstr "將所選項目上移"
+
+msgid "DIALOG_INSPECTOR_MENU_MOVE_SELECTED_DOWN"
+msgstr "將所選項目下移"
+
+msgid "DIALOG_DEFAULT_LINE"
+msgstr "嘿，你好！"
+
+msgid "ANONYMOUS_CHARACTER_NAME"
+msgstr "匿名"

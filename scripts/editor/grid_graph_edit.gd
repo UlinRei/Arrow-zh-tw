@@ -752,6 +752,13 @@ func make_resizable(instance) -> void:
 
 func _on_node_gui_input(event: InputEvent, instance) -> void:
 	if event is InputEventMouseButton:
+		if (
+			not OS.has_feature("android")
+			and event.pressed
+			and event.button_index == MOUSE_BUTTON_RIGHT
+			and not _ALREADY_SELECTED_NODE_IDS.has(instance._node_id)
+		):
+			_request_mind("select_node_exclusively", instance._node_id)
 		if event.is_double_click() && event.get_button_mask() == MouseButtonMask.MOUSE_BUTTON_MASK_LEFT:
 			# 🡦 To avid conflict with events handled by the `node.tscn` local scripts
 			if !(event.shift_pressed || event.alt_pressed || event.ctrl_pressed || event.meta_pressed):
@@ -879,6 +886,9 @@ func _gui_input(event: InputEvent) -> void:
 			# > Press
 			if event.is_echo() == false && event.is_pressed() == true:
 				match event.get_keycode():
+					KEY_A:
+						_request_mind("select_all_nodes_in_scene", null)
+						accept_event()
 					KEY_C:
 						_request_mind("clean_clipboard", null)
 						if _ALREADY_SELECTED_NODE_IDS.size() != 0:

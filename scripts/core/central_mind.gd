@@ -153,6 +153,10 @@ class Mind :
 				track_nodes_selection(args, true)
 			"node_deselection":
 				track_nodes_selection(args, false)
+			"select_all_nodes_in_scene":
+				select_all_nodes_in_open_scene()
+			"select_node_exclusively":
+				select_node_exclusively(args)
 			"branch_selection":
 				select_branch(args[0], args[1], args[2])
 			"insert_node":
@@ -858,6 +862,30 @@ class Mind :
 				_SELECTED_NODES_IDS.push_front(node_id)
 		Grid.call_deferred("force_select_group", list, false)
 		pass
+
+	func replace_node_selection(list: Array) -> void:
+		_SELECTED_NODES_IDS.clear()
+		for node_id in list:
+			if (
+				node_id is int
+				and node_id >= 0
+				and _PROJECT.resources.nodes.has(node_id)
+			):
+				_SELECTED_NODES_IDS.push_front(node_id)
+		react_to_selection_change()
+		Grid.call_deferred("force_select_group", list, true)
+
+	func select_all_nodes_in_open_scene() -> void:
+		if (
+			_PROJECT.resources.scenes.has(_CURRENT_OPEN_SCENE_ID)
+			and _PROJECT.resources.scenes[_CURRENT_OPEN_SCENE_ID].has("map")
+		):
+			replace_node_selection(
+				_PROJECT.resources.scenes[_CURRENT_OPEN_SCENE_ID].map.keys()
+			)
+
+	func select_node_exclusively(node_id: int) -> void:
+		replace_node_selection([node_id])
 
 	func flat_branch_map(start_node_id: int, end_node_id: int, with_waterfall: bool = false, scene_id: int = _CURRENT_OPEN_SCENE_ID) -> Array:
 		var flat_map = []
