@@ -703,6 +703,8 @@ func _cancel_active_canvas_gesture() -> void:
 	_cancel_node_hold()
 	_canvas_mode = CanvasMode.NONE
 	_canvas_touch_index = -1
+	_canvas_origin = Vector2.ZERO
+	_canvas_start_scroll = Vector2.ZERO
 	_canvas_elapsed = 0.0
 
 
@@ -795,6 +797,7 @@ func _inspect_android_node(node_id: int) -> void:
 		and Main.get("Mind") != null
 		and Grid._DRAWN_NODES_BY_ID.has(node_id)
 	):
+		Grid.select_node_by_id(node_id, true)
 		Main.Mind.inspect_node(node_id, -1, true)
 
 
