@@ -7,7 +7,7 @@ extends MenuButton
 
 const DESKTOP_MENU_BUTTON_SIZE := Vector2(56.0, 56.0)
 const ANDROID_MENU_BUTTON_SIZE := Vector2(64.0, 64.0)
-const DESKTOP_MENU_ICON_SIZE := 40
+const DESKTOP_MENU_ICON_SIZE := 48
 const ANDROID_MENU_ICON_SIZE := 46
 
 @onready var TheTree = get_tree()

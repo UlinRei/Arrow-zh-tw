@@ -125,6 +125,13 @@ msgstr ""
 msgid "Size"
 msgstr "筆數"
 
+msgid "HISTORY_SIZE_TOOLTIP"
+msgstr ""
+"歷史記錄筆數決定專案可復原或重作的步數。\n"
+"目前歷史記錄功能（復原 `Ctrl+Z`、重作 `Ctrl+Shift+Z` 或 `Ctrl+Y`）\n"
+"會將已開啟專案的完整狀態保存在記憶體中。\n"
+"效能可能因裝置規格與專案大小而異。"
+
 msgid "Authors"
 msgstr "作者"
 
@@ -591,6 +598,9 @@ msgstr "開啟視覺網格"
 msgid "Toggle snapping to the grid."
 msgstr "開啟網格貼齊"
 
+msgid "Change the snapping distance."
+msgstr "變更網格吸附間距。"
+
 msgid "Toggle the graph minimap."
 msgstr "切換小地圖"
 
@@ -623,6 +633,9 @@ msgstr "無法移除的節點編號："
 
 msgid "Hides Console Preserving the State"
 msgstr "隱藏主控台並保留目前狀態"
+
+msgid "CONSOLE_STATUS_END_EDGE_MESSAGE"
+msgstr "◆ 終止節點：{name}（{uid}）"
 
 msgid "Clears Console & State of Play"
 msgstr "清除主控台與播放狀態"

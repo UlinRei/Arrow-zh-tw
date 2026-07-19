@@ -2089,6 +2089,7 @@ icon = SubResource("AtlasTexture_y4ukx")
 expand_icon = true
 
 [node name="ProjectTitle" type="Label" parent="Editor/Top/Bar" unique_id=595114024]
+theme_override_font_sizes/font_size = 20
 layout_mode = 2
 size_flags_horizontal = 3
 text = "[Project Title]"
