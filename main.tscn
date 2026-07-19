@@ -2076,7 +2076,7 @@ theme_override_constants/separation = 10
 alignment = 1
 
 [node name="Undo" type="Button" parent="Editor/Top/Bar/History/Tools" unique_id=429811010]
-custom_minimum_size = Vector2(42, 40)
+custom_minimum_size = Vector2(37, 35)
 layout_mode = 2
 tooltip_text = "History Undo (Ctrl + Z)"
 theme_override_constants/icon_max_width = 28
@@ -2084,7 +2084,7 @@ icon = SubResource("AtlasTexture_ok1su")
 expand_icon = true
 
 [node name="Redo" type="Button" parent="Editor/Top/Bar/History/Tools" unique_id=2100040041]
-custom_minimum_size = Vector2(42, 40)
+custom_minimum_size = Vector2(37, 35)
 layout_mode = 2
 tooltip_text = "History Redo (Ctrl + Shift + Z)"
 theme_override_constants/icon_max_width = 28
