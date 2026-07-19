@@ -3,9 +3,6 @@ name: Build Android Test APK
 on:
   workflow_dispatch:
   workflow_call:
-  push:
-    branches:
-      - android-test
 
 permissions:
   contents: read
