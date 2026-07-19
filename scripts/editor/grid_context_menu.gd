@@ -211,28 +211,16 @@ func _position_android_overlay() -> void:
 	desired_size = desired_size.min(viewport_size - Vector2.ONE * 32.0)
 	_ANDROID_PANEL.custom_minimum_size = desired_size
 	_ANDROID_PANEL.size = desired_size
-	# Touch positions and this full-screen CanvasLayer overlay share viewport
-	# coordinates. Converting through the Control transform can collapse the
-	# popup position to (0, 0) on Android display scaling.
-	var tap_position := _CLICK_POINT_POSITION
-	# Match the desktop popup: open just after the invocation point instead of
-	# centering the panel over the user's fingers.
-	var desired_position := (viewport_size - desired_size) * 0.5
-	if tap_position != Vector2.ZERO:
-		desired_position = tap_position + Vector2(12.0, 12.0)
-	var edge_margin := 16.0
-	_ANDROID_PANEL.position = Vector2(
-		clampf(
-			desired_position.x,
-			edge_margin,
-			maxf(edge_margin, viewport_size.x - desired_size.x - edge_margin)
-		),
-		clampf(
-			desired_position.y,
-			edge_margin,
-			maxf(edge_margin, viewport_size.y - desired_size.y - edge_margin)
-		)
-	)
+	# Center anchors are stable across Android CanvasLayer scaling and cannot be
+	# reset to the top-left by a parent layout pass.
+	_ANDROID_PANEL.anchor_left = 0.5
+	_ANDROID_PANEL.anchor_top = 0.5
+	_ANDROID_PANEL.anchor_right = 0.5
+	_ANDROID_PANEL.anchor_bottom = 0.5
+	_ANDROID_PANEL.offset_left = -desired_size.x * 0.5
+	_ANDROID_PANEL.offset_top = -desired_size.y * 0.5
+	_ANDROID_PANEL.offset_right = desired_size.x * 0.5
+	_ANDROID_PANEL.offset_bottom = desired_size.y * 0.5
 
 
 func _refresh_android_overlay() -> void:

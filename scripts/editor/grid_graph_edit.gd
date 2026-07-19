@@ -829,14 +829,6 @@ func _gui_input(event: InputEvent) -> void:
 		# also interpreting the same drag as a selection rectangle.
 		accept_event()
 		return
-	if (
-		OS.has_feature("android")
-		and (event is InputEventMouseButton or event is InputEventMouseMotion)
-		and AndroidAdapterNode.handle_grid_mouse_input(event)
-	):
-		accept_event()
-		return
-
 	if event is InputEventKey:
 		# Without Modifiers
 		# > Press

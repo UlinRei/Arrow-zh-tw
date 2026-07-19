@@ -72,6 +72,9 @@ var _canvas_start_scroll := Vector2.ZERO
 var _canvas_elapsed := 0.0
 var _last_empty_tap_time_ms := -1000
 var _last_empty_tap_position := Vector2.ZERO
+var _last_node_tap_time_ms := -1000
+var _last_node_tap_position := Vector2.ZERO
+var _last_node_tap_id := -1
 
 var _node_hold_active := false
 var _node_hold_index := -1
@@ -80,12 +83,26 @@ var _node_hold_origin := Vector2.ZERO
 var _node_hold_current := Vector2.ZERO
 var _node_hold_elapsed := 0.0
 var _node_long_press_triggered := false
+var _node_dragging := false
+var _node_resizing := false
+var _node_start_offset := Vector2.ZERO
+var _node_start_size := Vector2.ZERO
 
 var _pinch_start_distance := 1.0
 var _pinch_start_zoom := 1.0
 var _pinch_anchor_graph_position := Vector2.ZERO
 var _app_menu_touch_index := -1
 var _inspector_toggle_touch_index := -1
+
+
+func _enter_tree() -> void:
+	if OS.has_feature("android"):
+		# Keep touch and mouse as independent input streams. Android gestures are
+		# handled below; a connected mouse remains entirely native GraphEdit input.
+		ProjectSettings.set_setting(
+			"input_devices/pointing/emulate_mouse_from_touch",
+			false
+		)
 
 
 func _ready() -> void:
@@ -466,8 +483,6 @@ func _input(event: InputEvent) -> void:
 		_handle_pan_gesture(event)
 	elif event is InputEventMagnifyGesture:
 		_handle_magnify_gesture(event)
-	elif event is InputEventMouseButton or event is InputEventMouseMotion:
-		_handle_emulated_canvas_mouse(event, false)
 
 
 func handle_grid_mouse_input(event: InputEvent) -> bool:
@@ -563,7 +578,21 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 
 		var node_id := _find_node_at(event.position)
 		if node_id >= 0:
+			if _is_node_resize_point(event.position, node_id):
+				_begin_node_resize(event, node_id)
+				get_viewport().set_input_as_handled()
+				return
+			if (
+				event.double_tap
+				or _is_manual_node_double_tap(event.position, node_id)
+			):
+				_last_node_tap_time_ms = -1000
+				_cancel_active_canvas_gesture()
+				_show_context_menu(event.position)
+				get_viewport().set_input_as_handled()
+				return
 			_begin_node_hold(event, node_id)
+			get_viewport().set_input_as_handled()
 			return
 
 		if _is_empty_canvas_point(event.position):
@@ -599,6 +628,7 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 
 		if _node_hold_active and event.index == _node_hold_index:
 			_finish_node_hold(event.position)
+			get_viewport().set_input_as_handled()
 
 
 func _handle_android_menu_touch(event: InputEventScreenTouch) -> bool:
@@ -663,8 +693,28 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 
 	if _node_hold_active and event.index == _node_hold_index:
 		_node_hold_current = event.position
-		if _node_hold_origin.distance_to(_node_hold_current) > NODE_DRAG_CANCEL_DISTANCE:
+		var graph_node := Grid._DRAWN_NODES_BY_ID.get(
+			_node_hold_node_id
+		) as GraphNode
+		if graph_node == null:
 			_cancel_node_hold()
+			return
+		var drag_delta := (
+			_node_hold_current - _node_hold_origin
+		) / Grid.get_zoom()
+		if _node_resizing:
+			Grid._on_resize_request(
+				_node_start_size + drag_delta,
+				graph_node
+			)
+		elif (
+			_node_dragging
+			or drag_delta.length() > NODE_DRAG_CANCEL_DISTANCE
+		):
+			_node_dragging = true
+			_node_hold_elapsed = 0.0
+			graph_node.position_offset = _node_start_offset + drag_delta
+		get_viewport().set_input_as_handled()
 
 
 func _handle_pan_gesture(event: InputEventPanGesture) -> void:
@@ -776,18 +826,61 @@ func _begin_node_hold(event: InputEventScreenTouch, node_id: int) -> void:
 	_node_hold_current = event.position
 	_node_hold_elapsed = 0.0
 	_node_long_press_triggered = false
+	_node_dragging = false
+	_node_resizing = false
+	var graph_node := Grid._DRAWN_NODES_BY_ID.get(node_id) as GraphNode
+	if graph_node != null:
+		_node_start_offset = graph_node.position_offset
+		_node_start_size = graph_node.size
+
+
+func _begin_node_resize(event: InputEventScreenTouch, node_id: int) -> void:
+	_begin_node_hold(event, node_id)
+	_node_resizing = true
+
+
+func _is_node_resize_point(global_position: Vector2, node_id: int) -> bool:
+	var graph_node := Grid._DRAWN_NODES_BY_ID.get(node_id) as GraphNode
+	if graph_node == null or not graph_node.resizable:
+		return false
+	var rect := graph_node.get_global_rect()
+	var handle_size := 64.0
+	return Rect2(
+		rect.end - Vector2.ONE * handle_size,
+		Vector2.ONE * handle_size
+	).has_point(global_position)
 
 
 func _finish_node_hold(release_position: Vector2) -> void:
 	_node_hold_current = release_position
 	var was_long_press := _node_long_press_triggered
 	var held_node_id := _node_hold_node_id
+	var was_dragging := _node_dragging
+	var was_resizing := _node_resizing
+	var graph_node := Grid._DRAWN_NODES_BY_ID.get(held_node_id) as GraphNode
+	if was_resizing and graph_node != null:
+		Grid._on_resize_end(graph_node.size, graph_node)
+	elif was_dragging:
+		Grid._on_node_move_end()
 	_cancel_node_hold()
-	if was_long_press:
+	if was_long_press or was_dragging or was_resizing:
 		# The menu was already shown while the finger was held.
 		get_viewport().set_input_as_handled()
 	else:
+		_last_node_tap_time_ms = Time.get_ticks_msec()
+		_last_node_tap_position = release_position
+		_last_node_tap_id = held_node_id
 		_inspect_android_node.call_deferred(held_node_id)
+
+
+func _is_manual_node_double_tap(position: Vector2, node_id: int) -> bool:
+	var elapsed_ms := Time.get_ticks_msec() - _last_node_tap_time_ms
+	return (
+		node_id == _last_node_tap_id
+		and elapsed_ms >= 0
+		and elapsed_ms <= int(DOUBLE_TAP_SECONDS * 1000.0)
+		and _last_node_tap_position.distance_to(position) <= DOUBLE_TAP_DISTANCE
+	)
 
 
 func _inspect_android_node(node_id: int) -> void:
@@ -808,6 +901,10 @@ func _cancel_node_hold() -> void:
 	_node_hold_origin = Vector2.ZERO
 	_node_hold_elapsed = 0.0
 	_node_long_press_triggered = false
+	_node_dragging = false
+	_node_resizing = false
+	_node_start_offset = Vector2.ZERO
+	_node_start_size = Vector2.ZERO
 
 
 func _begin_pinch() -> void:
@@ -943,7 +1040,9 @@ func _process(delta: float) -> void:
 	if _node_hold_active:
 		_node_hold_elapsed += delta
 		if (
-			not _node_long_press_triggered
+			not _node_dragging
+			and not _node_resizing
+			and not _node_long_press_triggered
 			and _node_hold_elapsed >= LONG_PRESS_SECONDS
 		):
 			_node_long_press_triggered = true
