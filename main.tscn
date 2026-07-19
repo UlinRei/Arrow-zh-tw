@@ -2072,19 +2072,22 @@ layout_mode = 2
 
 [node name="Tools" type="HBoxContainer" parent="Editor/Top/Bar/History" unique_id=354037290]
 layout_mode = 2
+theme_override_constants/separation = 10
 alignment = 1
 
 [node name="Undo" type="Button" parent="Editor/Top/Bar/History/Tools" unique_id=429811010]
-custom_minimum_size = Vector2(24, 24)
+custom_minimum_size = Vector2(42, 40)
 layout_mode = 2
 tooltip_text = "History Undo (Ctrl + Z)"
+theme_override_constants/icon_max_width = 28
 icon = SubResource("AtlasTexture_ok1su")
 expand_icon = true
 
 [node name="Redo" type="Button" parent="Editor/Top/Bar/History/Tools" unique_id=2100040041]
-custom_minimum_size = Vector2(24, 24)
+custom_minimum_size = Vector2(42, 40)
 layout_mode = 2
 tooltip_text = "History Redo (Ctrl + Shift + Z)"
+theme_override_constants/icon_max_width = 28
 icon = SubResource("AtlasTexture_y4ukx")
 expand_icon = true
 
@@ -2132,11 +2135,13 @@ icon = SubResource("AtlasTexture_h8feu")
 expand_icon = true
 
 [node name="Save" type="Button" parent="Editor/Top/Bar" unique_id=1780272244]
-custom_minimum_size = Vector2(94, 0)
+custom_minimum_size = Vector2(110, 48)
 layout_mode = 2
 size_flags_vertical = 4
 tooltip_text = "Save Document (Ctrl + S)"
 theme_type_variation = &"SaveButton"
+theme_override_constants/icon_max_width = 34
+theme_override_font_sizes/font_size = 18
 text = "Save"
 icon = SubResource("AtlasTexture_bxg2x")
 expand_icon = true
