@@ -93,6 +93,7 @@ var _pinch_start_zoom := 1.0
 var _pinch_anchor_graph_position := Vector2.ZERO
 var _app_menu_touch_index := -1
 var _inspector_toggle_touch_index := -1
+var _relayed_mouse_touches: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -569,6 +570,16 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 	if _handle_android_menu_touch(event):
 		get_viewport().set_input_as_handled()
 		return
+	if event.pressed and _should_relay_touch_as_mouse(event.position):
+		_relay_touch_button(event, true)
+		_relayed_mouse_touches[event.index] = event.position
+		get_viewport().set_input_as_handled()
+		return
+	if not event.pressed and _relayed_mouse_touches.has(event.index):
+		_relay_touch_button(event, false)
+		_relayed_mouse_touches.erase(event.index)
+		get_viewport().set_input_as_handled()
+		return
 
 	if event.pressed:
 		_touch_points[event.index] = event.position
@@ -678,6 +689,11 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 		and AndroidContextOverlay.is_visible_in_tree()
 	):
 		return
+	if _relayed_mouse_touches.has(event.index):
+		_relay_touch_motion(event)
+		_relayed_mouse_touches[event.index] = event.position
+		get_viewport().set_input_as_handled()
+		return
 	_touch_points[event.index] = event.position
 
 	if _canvas_mode == CanvasMode.PINCH:
@@ -689,7 +705,9 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 		_canvas_mode != CanvasMode.NONE
 		and event.index == _canvas_touch_index
 	):
-		_update_canvas_drag(event.position)
+		_canvas_current = event.position
+		_canvas_mode = CanvasMode.PAN
+		Grid.set_scroll_offset(Grid.get_scroll_offset() - event.relative)
 		get_viewport().set_input_as_handled()
 		return
 
@@ -723,9 +741,8 @@ func _handle_pan_gesture(event: InputEventPanGesture) -> void:
 	if not Grid.get_global_rect().has_point(event.position):
 		return
 	if _touch_points.size() >= 2:
-		if _canvas_mode != CanvasMode.PINCH:
-			_begin_pinch()
-		_update_pinch()
+		# Raw ScreenDrag updates both finger positions and owns pinch calculations.
+		# Consuming the derived gesture avoids applying the same movement twice.
 		get_viewport().set_input_as_handled()
 		return
 	# Android reports two-finger navigation as PanGesture even when raw touch
@@ -1016,6 +1033,69 @@ func _find_node_at(global_position: Vector2) -> int:
 			return int(node_id)
 
 	return -1
+
+
+func _should_relay_touch_as_mouse(global_position: Vector2) -> bool:
+	if (
+		InspectorPanel != null
+		and InspectorPanel.is_visible_in_tree()
+		and InspectorPanel.get_global_rect().has_point(global_position)
+	):
+		return true
+	if (
+		BottomPanel != null
+		and BottomPanel.is_visible_in_tree()
+		and BottomPanel.get_global_rect().has_point(global_position)
+	):
+		return true
+	if not Grid.get_global_rect().has_point(global_position):
+		return true
+	if Grid.to_local(global_position).y < 42.0:
+		return true
+	return _is_node_port_point(global_position)
+
+
+func _is_node_port_point(global_position: Vector2) -> bool:
+	const PORT_TOUCH_RADIUS := 36.0
+	for node_id in Grid._DRAWN_NODES_BY_ID:
+		var graph_node := Grid._DRAWN_NODES_BY_ID[node_id] as GraphNode
+		if graph_node == null:
+			continue
+		var node_origin := graph_node.get_global_rect().position
+		for port_index in graph_node.get_input_port_count():
+			if global_position.distance_to(
+				node_origin + graph_node.get_input_port_position(port_index)
+			) <= PORT_TOUCH_RADIUS:
+				return true
+		for port_index in graph_node.get_output_port_count():
+			if global_position.distance_to(
+				node_origin + graph_node.get_output_port_position(port_index)
+			) <= PORT_TOUCH_RADIUS:
+				return true
+	return false
+
+
+func _relay_touch_button(event: InputEventScreenTouch, pressed: bool) -> void:
+	var mouse_event := InputEventMouseButton.new()
+	mouse_event.device = InputEvent.DEVICE_ID_EMULATION
+	mouse_event.position = event.position
+	mouse_event.global_position = event.position
+	mouse_event.button_index = MOUSE_BUTTON_LEFT
+	mouse_event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+	mouse_event.pressed = pressed
+	mouse_event.double_click = event.double_tap
+	Input.parse_input_event(mouse_event)
+
+
+func _relay_touch_motion(event: InputEventScreenDrag) -> void:
+	var mouse_event := InputEventMouseMotion.new()
+	mouse_event.device = InputEvent.DEVICE_ID_EMULATION
+	mouse_event.position = event.position
+	mouse_event.global_position = event.position
+	mouse_event.relative = event.relative
+	mouse_event.velocity = event.velocity
+	mouse_event.button_mask = MOUSE_BUTTON_MASK_LEFT
+	Input.parse_input_event(mouse_event)
 
 
 func _show_context_menu(global_position: Vector2) -> void:
