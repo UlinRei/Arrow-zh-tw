@@ -88,8 +88,10 @@ func current_mouse_offset() -> Vector2:
 
 # (right-click on the grid)
 func _on_popup_request(_p = null) -> void:
-	var local = self.get_local_mouse_position()
-	var global = self.get_global_mouse_position()
+	var local := self.get_local_mouse_position()
+	if OS.has_feature("android") and _p is Vector2:
+		local = _p
+	var global: Vector2 = self.get_global_rect().position + local
 	GridContextMenu.call_deferred("show_up", global, offset_from_position(local))
 	pass
 

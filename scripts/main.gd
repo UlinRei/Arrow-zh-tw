@@ -171,5 +171,11 @@ func _notification(what) -> void:
 
 # shortcuts (keybinding/action)
 func _input(event:InputEvent) -> void:
+	if OS.has_feature("android"):
+		var android_adapter := get_node_or_null("AndroidAdapter")
+		if android_adapter != null:
+			android_adapter.handle_raw_touch_input(event)
+			if get_viewport().is_input_handled():
+				return
 	var _handled = Mind.handle_shortcuts(event)
 	pass

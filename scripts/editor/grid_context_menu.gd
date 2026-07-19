@@ -54,10 +54,10 @@ func _setup_android_context_menu() -> void:
 		"/root/Main/Overlays/Control/AndroidContext"
 	) as Control
 	_ANDROID_PANEL = get_node_or_null(
-		"/root/Main/Overlays/Control/AndroidContext/Menu"
+		"/root/Main/Overlays/Control/AndroidContext/Center/Menu"
 	) as PanelContainer
 	_ANDROID_CONTENT = get_node_or_null(
-		"/root/Main/Overlays/Control/AndroidContext/Menu/Margin/Content"
+		"/root/Main/Overlays/Control/AndroidContext/Center/Menu/Margin/Content"
 	) as VBoxContainer
 	var shield := get_node_or_null(
 		"/root/Main/Overlays/Control/AndroidContext/Shield"
@@ -207,20 +207,12 @@ func _position_android_overlay() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	_ANDROID_OVERLAY.position = Vector2.ZERO
 	_ANDROID_OVERLAY.size = viewport_size
-	var desired_size := Vector2(320.0, 300.0)
+	var desired_size := Vector2(480.0, 360.0)
 	desired_size = desired_size.min(viewport_size - Vector2.ONE * 32.0)
 	_ANDROID_PANEL.custom_minimum_size = desired_size
-	_ANDROID_PANEL.size = desired_size
-	# Center anchors are stable across Android CanvasLayer scaling and cannot be
-	# reset to the top-left by a parent layout pass.
-	_ANDROID_PANEL.anchor_left = 0.5
-	_ANDROID_PANEL.anchor_top = 0.5
-	_ANDROID_PANEL.anchor_right = 0.5
-	_ANDROID_PANEL.anchor_bottom = 0.5
-	_ANDROID_PANEL.offset_left = -desired_size.x * 0.5
-	_ANDROID_PANEL.offset_top = -desired_size.y * 0.5
-	_ANDROID_PANEL.offset_right = desired_size.x * 0.5
-	_ANDROID_PANEL.offset_bottom = desired_size.y * 0.5
+	# The parent CenterContainer owns positioning, so layout recalculation can no
+	# longer snap the touch menu back to the upper-left corner.
+	_ANDROID_PANEL.reset_size()
 
 
 func _refresh_android_overlay() -> void:

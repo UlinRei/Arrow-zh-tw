@@ -130,7 +130,7 @@ func _setup_android() -> void:
 		"/root/Main/Overlays/Control/AndroidContext"
 	) as Control
 	AndroidContextPanel = get_node_or_null(
-		"/root/Main/Overlays/Control/AndroidContext/Menu"
+		"/root/Main/Overlays/Control/AndroidContext/Center/Menu"
 	) as Control
 	MiniMapBox = get_node_or_null(
 		"/root/Main/Editor/Center/MiniMap"
@@ -472,6 +472,12 @@ func _enlarge_android_titles() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Main forwards raw Android input before child Controls can consume it.
+	# Keeping this callback empty prevents a single touch from being handled twice.
+	pass
+
+
+func handle_raw_touch_input(event: InputEvent) -> void:
 	if not _setup_complete:
 		return
 
