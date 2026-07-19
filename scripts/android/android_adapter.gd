@@ -262,6 +262,9 @@ func _install_touch_control_handlers(node: Node) -> void:
 
 
 func _on_native_control_touch(event: InputEvent, control: Control) -> void:
+	if event is InputEventKey and (control is LineEdit or control is TextEdit):
+		_schedule_android_key_fallback(event, control)
+		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			_control_touch_states[control.get_instance_id()] = {
@@ -770,33 +773,53 @@ func handle_raw_touch_input(event: InputEvent) -> void:
 		event is InputEventKey
 		and event.pressed
 		and not event.echo
-		and (
-			event.keycode == KEY_BACKSPACE
-			or event.physical_keycode == KEY_BACKSPACE
-			or event.unicode == 8
-		)
 	):
-		_schedule_android_backspace_fallback()
+		var focused := get_viewport().gui_get_focus_owner()
+		if focused is LineEdit or focused is TextEdit:
+			_schedule_android_key_fallback(event, focused)
 
 
-func _schedule_android_backspace_fallback() -> void:
-	var focused := get_viewport().gui_get_focus_owner()
-	if not (focused is LineEdit or focused is TextEdit):
+func _schedule_android_key_fallback(event: InputEventKey, control: Control) -> void:
+	if not event.pressed or event.echo:
 		return
-	_ensure_android_backspace.call_deferred(focused, focused.text)
+	var is_backspace := (
+		event.keycode == KEY_BACKSPACE
+		or event.physical_keycode == KEY_BACKSPACE
+		or event.unicode == 8
+	)
+	if not is_backspace and event.unicode < 32:
+		return
+	_ensure_android_key_applied.call_deferred(
+		control,
+		control.text,
+		event.unicode,
+		is_backspace
+	)
 
 
-func _ensure_android_backspace(control: Control, original_text: String) -> void:
+func _ensure_android_key_applied(
+	control: Control,
+	original_text: String,
+	unicode_value: int,
+	is_backspace: bool
+) -> void:
 	if not is_instance_valid(control) or control.text != original_text:
 		return
-	if control is LineEdit:
-		(control as LineEdit).delete_char_at_caret()
-	elif control is TextEdit:
-		var text_edit := control as TextEdit
-		if text_edit.has_selection():
-			text_edit.delete_selection()
+	if is_backspace:
+		if control is LineEdit:
+			(control as LineEdit).delete_char_at_caret()
 		else:
-			text_edit.backspace()
+			var text_edit := control as TextEdit
+			if text_edit.has_selection():
+				text_edit.delete_selection()
+			else:
+				text_edit.backspace()
+	elif unicode_value >= 32:
+		var inserted := String.chr(unicode_value)
+		if control is LineEdit:
+			(control as LineEdit).insert_text_at_caret(inserted)
+		else:
+			(control as TextEdit).insert_text_at_caret(inserted)
 
 
 func _handle_screen_touch(event: InputEventScreenTouch) -> void:
@@ -1435,8 +1458,6 @@ func _process(delta: float) -> void:
 		var request := _pending_context_menu
 		_pending_context_menu = {}
 		ContextMenu.show_up(request.position, request.offset, request.quick)
-		AndroidContextOverlay.show()
-		ContextMenu.call("_position_android_overlay")
 	if _pinch_update_pending and _canvas_mode == CanvasMode.PINCH:
 		_pinch_update_pending = false
 		_update_pinch()

@@ -72,11 +72,8 @@ func _setup_android_context_menu() -> void:
 	):
 		push_error("Android context menu scene controls are missing.")
 		return
-	# Reuse the actual desktop controls so mouse and keyboard selection semantics
-	# (including Ctrl toggle and Shift range selection) stay exactly identical.
-	var node_panel := NodeInsertList.get_parent().get_parent() as PanelContainer
-	node_panel.reparent(_ANDROID_CONTENT, false)
-	EditToolBox.reparent(_ANDROID_CONTENT, false)
+	# Keep the original desktop hierarchy intact. Android uses the same native
+	# PopupPanel, centered below, so item selection semantics remain identical.
 	NodeInsertList.custom_minimum_size = Vector2.ZERO
 	NodeInsertList.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var popup_style := get_theme_stylebox("panel", "PopupPanel")
@@ -197,9 +194,13 @@ func show_up(on_position:Vector2, offset:Vector2, quick_insertion = null) -> voi
 		NodeInsertList.deselect_all()
 		reset_quick_edit_buttons()
 		disable_insert_button_if_nothing_is_there()
-		_ANDROID_OVERLAY.show()
-		_position_android_overlay()
-		_refresh_android_overlay.call_deferred()
+		var viewport_size := get_viewport().get_visible_rect().size
+		var desired_size := Vector2i(
+			mini(720, int(viewport_size.x * 0.86)),
+			mini(420, int(viewport_size.y * 0.86))
+		)
+		popup_centered(desired_size)
+		_refresh_android_node_type_list.call_deferred()
 		return
 	disable_insert_button_if_nothing_is_there()
 	self.set_position(on_position)
