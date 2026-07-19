@@ -41,6 +41,7 @@ var _android_list_touch_origin := Vector2.ZERO
 var _android_list_last_position := Vector2.ZERO
 var _android_list_velocity := 0.0
 var _android_list_dragging := false
+var _android_suppress_mouse_until_ms := -1000
 var _android_setup_complete := false
 
 func _ready() -> void:
@@ -82,6 +83,7 @@ func _setup_android_context_menu() -> void:
 	if popup_style != null:
 		_ANDROID_PANEL.add_theme_stylebox_override("panel", popup_style)
 	NodeInsertList.gui_input.connect(_on_android_list_gui_input)
+	set_process_input(true)
 	set_process(true)
 	_configure_android_list_scrollbar.call_deferred()
 	if shield != null:
@@ -99,6 +101,20 @@ func _configure_android_list_scrollbar() -> void:
 		scroll_bar.modulate.a = 0.0
 
 
+func _input(event: InputEvent) -> void:
+	if (
+		not OS.has_feature("android")
+		or _ANDROID_OVERLAY == null
+		or not _ANDROID_OVERLAY.visible
+	):
+		return
+	if (
+		event is InputEventMouseButton
+		and Time.get_ticks_msec() <= _android_suppress_mouse_until_ms
+	):
+		get_viewport().set_input_as_handled()
+
+
 func _on_android_list_gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed:
@@ -109,6 +125,7 @@ func _on_android_list_gui_input(event: InputEvent) -> void:
 			_android_list_dragging = false
 		elif event.index == _android_list_touch_index:
 			if _android_list_dragging:
+				_android_suppress_mouse_until_ms = Time.get_ticks_msec() + 180
 				NodeInsertList.accept_event()
 			_android_list_touch_index = -1
 		return
