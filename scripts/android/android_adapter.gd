@@ -1437,6 +1437,8 @@ func _process(delta: float) -> void:
 		var request := _pending_context_menu
 		_pending_context_menu = {}
 		ContextMenu.show_up(request.position, request.offset, request.quick)
+		AndroidContextOverlay.show()
+		ContextMenu.call("_position_android_overlay")
 	if _pinch_update_pending and _canvas_mode == CanvasMode.PINCH:
 		_pinch_update_pending = false
 		_update_pinch()
