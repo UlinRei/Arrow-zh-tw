@@ -731,7 +731,7 @@ msgid "PROJECT_REMOVAL_PROMPT"
 msgstr ""
 "You're about to remove listed project [i]`{name}`[/i] ({pid}).\n"
 "If unlisted, the document will remain intact and will only be dropped from the projects list.\n"
-"Deleted files would not be recoverable.\n\n"
+"Deleted files would not be recoverable."
 
 msgid "Project file: `%s`"
 msgstr ""
@@ -978,7 +978,7 @@ msgstr ""
 # -----------------------------------------
 
 msgid "TYPE_INSPECTOR_RAW_UID_HINT"
-msgstr "\n [Press Button to Copy]"
+msgstr "[Press Button to Copy]"
 
 msgid "RESOURCE_PERMANENT_REMOVAL_WARNING"
 msgstr ""
