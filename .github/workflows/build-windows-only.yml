@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GODOT_VERSION: 4.7
+  GODOT_VERSION: 4.7.1
   GODOT_STATUS: stable
 
 jobs:
