@@ -245,7 +245,7 @@ func request_remove_character(resource_id:int = -1) -> void:
 func load_character_in_editor(character_id:int) -> void:
 	_SELECTED_CHARACTER_BEING_EDITED_ID = character_id
 	var the_character = _LISTED_CHARACTERS_BY_ID[character_id]
-	CharacterRawUid.set_deferred("tooltip_text", (RAW_UID_TIP_TEMPLATE % character_id) + tr("TYPE_INSPECTOR_RAW_UID_HINT"))
+	CharacterRawUid.set_deferred("tooltip_text", (RAW_UID_TIP_TEMPLATE % character_id) + "\n " + tr("TYPE_INSPECTOR_RAW_UID_HINT"))
 	CharacterEditorName.set_text(the_character.name)
 	CharacterColorPickerButton.set("color", Helpers.Utils.rgba_hex_to_color(the_character.color))
 	# can't it be removed ? not if it's used by other resources

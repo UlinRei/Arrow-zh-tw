@@ -1082,9 +1082,12 @@ class Mind :
 		return false
 
 	func make_node_name_from(prefix:String, node_id:int, type_name:String) -> String:
+		var ordinal = 1
+		while is_resource_name_duplicate(String.num_int64(ordinal), "nodes"):
+			ordinal += 1
 		var node_name = NODE_INITIAL_NAME_TEMPLATE.format({
-			"node_id":  node_id,
-			"node_id_base36": Helpers.Utils.int_to_base36(node_id).to_lower(),
+			"ordinal": ordinal,
+			"node_id": node_id,
 			"prefix": prefix,
 			"type_abbreviation": get_type_name_abbreviation(type_name)
 		})
@@ -1122,7 +1125,7 @@ class Mind :
 		if name_prefix.length() == 0:
 			var open_scene_is_macro = is_scene_macro(_CURRENT_OPEN_SCENE_ID)
 			var scene_type_prefix = (NODE_INITIAL_NAME_PREFIX_FOR_MACROS if open_scene_is_macro else NODE_INITIAL_NAME_PREFIX_FOR_SCENES)
-			name_prefix = (scene_type_prefix + Helpers.Utils.int_to_base36(_CURRENT_OPEN_SCENE_ID).to_lower())
+			name_prefix = (scene_type_prefix + String.num_int64(_CURRENT_OPEN_SCENE_ID))
 		if type in NODE_TYPES_LIST:
 			return {
 				"type": type,
@@ -2415,7 +2418,7 @@ class Mind :
 							"name": project_name,
 							"pid": project_id,
 						})
-					) +
+					) + "\n\n" +
 					(
 						( tr("Project file: `%s`") % (project_listed.filename + Settings.PROJECT_FILE_EXTENSION) )
 						if project_listed is Dictionary && project_listed.has("filename")

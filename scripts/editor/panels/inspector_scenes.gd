@@ -327,7 +327,7 @@ func update_scene_editorial_state(scene_id:int = -1) -> void:
 	if scene_id >= 0 && _LISTED_SCENES_BY_ID.has(scene_id):
 		_SELECTED_SCENE_BEING_EDITED_ID = scene_id
 		var the_scene = _LISTED_SCENES_BY_ID[scene_id]
-		SceneRawUid.set_deferred("tooltip_text", (RAW_UID_TIP_TEMPLATE % scene_id) + tr("TYPE_INSPECTOR_RAW_UID_HINT"))
+		SceneRawUid.set_deferred("tooltip_text", (RAW_UID_TIP_TEMPLATE % scene_id) + "\n " + tr("TYPE_INSPECTOR_RAW_UID_HINT"))
 		SceneEditorName.set_text(the_scene.name)
 		# SceneEditorBox.set("visible", true) # moved to `smartly_update_tools`
 		# this may be called by other scripts, so let's reselect the open scene

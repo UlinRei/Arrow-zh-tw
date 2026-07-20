@@ -232,7 +232,7 @@ func load_variable_in_editor(variable_id) -> void:
 	_SELECTED_VARIABLE_BEING_EDITED_ID = variable_id
 	var the_variable = _LISTED_VARIABLES_BY_ID[variable_id]
 	switch_variable_initial_value_sub_editor(the_variable.type)
-	VariableRawUid.set_deferred("tooltip_text", (RAW_UID_TIP_TEMPLATE % variable_id) + tr("TYPE_INSPECTOR_RAW_UID_HINT"))
+	VariableRawUid.set_deferred("tooltip_text", (RAW_UID_TIP_TEMPLATE % variable_id) + "\n " + tr("TYPE_INSPECTOR_RAW_UID_HINT"))
 	VariableEditorName.set_text(the_variable.name)
 	set_variable_initial_value_sub_editor(the_variable.type, the_variable.init)
 	# can't it be removed ? not if it's used by other resources

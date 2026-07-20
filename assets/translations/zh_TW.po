@@ -247,7 +247,7 @@ msgid "Snapshots"
 msgstr "快照"
 
 msgid "Restore"
-msgstr "還原快照"
+msgstr "載入快照"
 
 msgid "Preview"
 msgstr "預覽"
@@ -257,6 +257,11 @@ msgstr "節點"
 
 msgid "Unique Node Name"
 msgstr "不重複的節點名稱"
+
+msgid "NODE_FOCUS_BTN_TOOLTIP"
+msgstr ""
+"在網格上尋找目前檢視的節點\n"
+"（Ctrl + 反斜線）"
 
 msgid "[Notes]"
 msgstr "[備註]"
@@ -464,6 +469,55 @@ msgstr ""
 msgid "Close Anyway"
 msgstr "仍要關閉"
 
+msgid "Discarding New Project ?"
+msgstr "要捨棄目前專案並建立新專案嗎？"
+
+msgid "PROJECT_DISCARD_WARNING"
+msgstr ""
+"`%s` 已被修改。建立新的空白專案會捨棄所有尚未儲存"
+"的資料。"
+
+msgid "OK! Proceed Anyway"
+msgstr "確定，仍要繼續"
+
+msgid "PROJECT_REMOVAL_PROMPT"
+msgstr ""
+"您即將從清單移除專案 [i]`{name}`[/i]（{pid}）。\n"
+"若只從清單移除，文件將保持不變，僅會從專案清單中移"
+"除。\n"
+"刪除的檔案將無法復原。"
+
+msgid "Project file: `%s`"
+msgstr "專案檔案：`%s`"
+
+msgid "Delete File!"
+msgstr "刪除檔案！"
+
+msgid "Unlist"
+msgstr "從清單移除"
+
+msgid "Are you sure ?"
+msgstr "確定要繼續嗎？"
+
+msgid "SCENES_FIELD_NAME"
+msgid_plural "SCENES_FIELD_NAME_PLURAL"
+msgstr[0] "場景"
+
+msgid "MACROS_FIELD_NAME"
+msgid_plural "MACROS_FIELD_NAME_PLURAL"
+msgstr[0] "巨集"
+
+msgid "RESOURCE_PERMANENT_REMOVAL_WARNING"
+msgstr ""
+"您即將永久移除{field_name} `{res_name}`。\n"
+"要繼續嗎？"
+
+msgid "Yes, Remove"
+msgstr "是，移除"
+
+msgid "TYPE_INSPECTOR_RAW_UID_HINT"
+msgstr "[按一下按鈕即可複製]"
+
 # ---------------------------------------------
 # scripts/editor/panels/preferences_ald_menu.gd
 # ---------------------------------------------
@@ -637,7 +691,7 @@ msgid "Hides Console Preserving the State"
 msgstr "隱藏主控台並保留目前狀態"
 
 msgid "CONSOLE_STATUS_END_EDGE_MESSAGE"
-msgstr "◆ 終止節點：{name}（{uid}）"
+msgstr "◆ 終止節點：{name}（UID：{uid}）"
 
 msgid "Clears Console & State of Play"
 msgstr "清除主控台與播放狀態"

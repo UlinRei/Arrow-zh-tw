@@ -317,7 +317,7 @@ func update_macro_editorial_state(macro_id:int = -1) -> void:
 	if macro_id >= 0 && _LISTED_MACROS_BY_ID.has(macro_id):
 		_SELECTED_MACRO_BEING_EDITED_ID = macro_id
 		var the_macro = _LISTED_MACROS_BY_ID[macro_id]
-		MacroRawUid.set_deferred("tooltip_text", (RAW_UID_TIP_TEMPLATE % macro_id) + tr("TYPE_INSPECTOR_RAW_UID_HINT"))
+		MacroRawUid.set_deferred("tooltip_text", (RAW_UID_TIP_TEMPLATE % macro_id) + "\n " + tr("TYPE_INSPECTOR_RAW_UID_HINT"))
 		MacroEditorName.set_text(the_macro.name)
 		# MacroEditorBox.set("visible", true) # moved to `smartly_update_tools`
 		# this may be called by other scripts, so let's reselect the open macro
