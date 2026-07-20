@@ -1081,9 +1081,25 @@ class Mind :
 			return true
 		return false
 
-	func make_node_name_from(prefix:String, node_id:int, type_name:String) -> String:
+	func is_node_name_duplicate_in_scene(name: String, scene_id: int) -> bool:
+		if _PROJECT.resources.scenes.has(scene_id):
+			for node_id in _PROJECT.resources.scenes[scene_id].map:
+				if _PROJECT.resources.nodes.has(node_id) && _PROJECT.resources.nodes[node_id].name == name:
+					return true
+		return false
+
+	func make_smallest_available_resource_name(prefix: String, field: String) -> String:
 		var ordinal = 1
-		while is_resource_name_duplicate(String.num_int64(ordinal), "nodes"):
+		var resource_name = prefix + String.num_int64(ordinal)
+		while is_resource_name_duplicate(resource_name, field):
+			ordinal += 1
+			resource_name = prefix + String.num_int64(ordinal)
+		return resource_name
+
+	func make_node_name_from(prefix:String, node_id:int, type_name:String, scene_id:int = -1) -> String:
+		var owner_scene_id = scene_id if scene_id >= 0 else _CURRENT_OPEN_SCENE_ID
+		var ordinal = 1
+		while is_node_name_duplicate_in_scene(String.num_int64(ordinal), owner_scene_id):
 			ordinal += 1
 		var node_name = NODE_INITIAL_NAME_TEMPLATE.format({
 			"ordinal": ordinal,
@@ -1092,7 +1108,7 @@ class Mind :
 			"type_abbreviation": get_type_name_abbreviation(type_name)
 		})
 		if Settings.FORCE_UNIQUE_NAMES_FOR_NODES:
-			while is_resource_name_duplicate(node_name, "nodes"):
+			while is_node_name_duplicate_in_scene(node_name, owner_scene_id):
 				node_name += Settings.REUSED_NODE_NAMES_AUTO_POSTFIX
 		return node_name
 	
@@ -1121,7 +1137,7 @@ class Mind :
 			printerr("Unexpected Behavior! Trying to check if nonexistent scene = %s is macro!" % scene_id)
 		return false
 	
-	func create_new_node(type:String, new_node_seed_uid:int, name_prefix:String=""):
+	func create_new_node(type:String, new_node_seed_uid:int, name_prefix:String="", scene_id:int = -1):
 		if name_prefix.length() == 0:
 			var open_scene_is_macro = is_scene_macro(_CURRENT_OPEN_SCENE_ID)
 			var scene_type_prefix = (NODE_INITIAL_NAME_PREFIX_FOR_MACROS if open_scene_is_macro else NODE_INITIAL_NAME_PREFIX_FOR_SCENES)
@@ -1129,7 +1145,7 @@ class Mind :
 		if type in NODE_TYPES_LIST:
 			return {
 				"type": type,
-				"name": make_node_name_from(name_prefix, new_node_seed_uid, type),
+				"name": make_node_name_from(name_prefix, new_node_seed_uid, type, scene_id),
 				"data": Inspector.Tab.Node.SUB_INSPECTORS[type]._create_new(new_node_seed_uid)
 			}
 		return null
@@ -1137,7 +1153,7 @@ class Mind :
 	func create_insert_node(type:String, offset:Vector2, scene_id:int = -1, draw:bool=true, name_prefix:String="", preset:Dictionary = {}) -> int:
 		# create the node in memory
 		var new_node_seed_uid = create_new_resource_id()
-		var the_node = create_new_node(type, new_node_seed_uid, name_prefix)
+		var the_node = create_new_node(type, new_node_seed_uid, name_prefix, scene_id)
 		if the_node != null:
 			var the_type = NODE_TYPES_LIST[type]
 			var the_map  = { "offset": Helpers.Utils.vector2_to_array(offset) }
@@ -1719,22 +1735,15 @@ class Mind :
 			)
 		return list
 	
-	func create_variable_name_from_id(id:int) -> String:
-		var the_name = (
-			Settings.VARIABLE_NAMES_PREFIX +
-			Helpers.Utils.int_to_base36(id).to_lower()
-		)
-		if Settings.FORCE_UNIQUE_NAMES_FOR_VARIABLES:
-			while is_resource_name_duplicate(the_name, "variables"):
-				the_name += Settings.REUSED_VARIABLE_NAMES_AUTO_POSTFIX
-		return the_name
+	func create_variable_name() -> String:
+		return make_smallest_available_resource_name(Settings.VARIABLE_NAMES_PREFIX, "variables")
 	
 	func create_new_variable(type:String) -> void:
 		if Settings.VARIABLE_TYPES.has(type):
 			var the_type = Settings.VARIABLE_TYPES[type]
 			var new_res_seed_id = create_new_resource_id()
 			var the_new_variable = {
-				"name": create_variable_name_from_id(new_res_seed_id),
+				"name": create_variable_name(),
 				"type": type,
 				"init": the_type.default
 			}
@@ -1742,20 +1751,13 @@ class Mind :
 			Inspector.Tab.Variables.call_deferred("list_variables", ({ new_res_seed_id: the_new_variable }))
 		pass
 	
-	func create_character_name_from_id(id:int) -> String:
-		var the_name = (
-			Settings.CHARACTER_NAMES_PREFIX +
-			Helpers.Utils.int_to_base36(id).to_lower()
-		)
-		if Settings.FORCE_UNIQUE_NAMES_FOR_CHARACTERS:
-			while is_resource_name_duplicate(the_name, "characters"):
-				the_name += Settings.REUSED_CHARACTER_NAMES_AUTO_POSTFIX
-		return the_name
+	func create_character_name() -> String:
+		return make_smallest_available_resource_name(Settings.CHARACTER_NAMES_PREFIX, "characters")
 	
 	func create_new_character() -> void:
 		var new_res_seed_id = create_new_resource_id()
 		var the_new_character = {
-			"name": create_character_name_from_id(new_res_seed_id),
+			"name": create_character_name(),
 			"color": Helpers.Utils.color_to_rgba_hex(Helpers.Generators.create_random_color(), false)
 		}
 		write_resource("characters", the_new_character, new_res_seed_id, false)
@@ -1764,13 +1766,8 @@ class Mind :
 	
 	func create_new_scene(is_macro:bool = false):
 		var new_scene_seed_id = create_new_resource_id()
-		var new_scene_name = (
-			(Settings.MACRO_NAME_PREFIX if is_macro else Settings.SCENE_NAME_PREFIX)
-			+ Helpers.Utils.int_to_base36(new_scene_seed_id).to_lower()
-		)
-		if Settings.FORCE_UNIQUE_NAMES_FOR_SCENES_AND_MACROS:
-			while is_resource_name_duplicate(new_scene_name, "scenes"):
-				new_scene_name += Settings.REUSED_SCENE_OR_MACRO_NAMES_AUTO_POSTFIX
+		var name_prefix = Settings.MACRO_NAME_PREFIX if is_macro else Settings.SCENE_NAME_PREFIX
+		var new_scene_name = make_smallest_available_resource_name(name_prefix, "scenes")
 		var the_new_scene = {
 			"name": new_scene_name,
 			"entry": null, # will be updated later
@@ -1783,8 +1780,8 @@ class Mind :
 		var new_node_seed_uid = create_new_resource_id()
 		var required_entry_type = Settings.NEW_SCENE_OR_MACRO_REQUIRED_INITIAL_ENTRY_NODE_TYPE
 		var scene_type_prefix = (NODE_INITIAL_NAME_PREFIX_FOR_MACROS if is_macro else NODE_INITIAL_NAME_PREFIX_FOR_SCENES)
-		var name_prefix = scene_type_prefix + String.num_int64(new_scene_seed_id)
-		var the_node = create_new_node(required_entry_type, new_node_seed_uid, name_prefix)
+		var node_name_prefix = scene_type_prefix + String.num_int64(new_scene_seed_id)
+		var the_node = create_new_node(required_entry_type, new_node_seed_uid, node_name_prefix, new_scene_seed_id)
 		if the_node != null:
 			var the_map  = { "offset": Helpers.Utils.vector2_to_array(Settings.NEW_SCENE_OR_MACRO_REQUIRED_INITIAL_ENTRY_NODE_OFFSET) }
 			write_resource("nodes", the_node, new_node_seed_uid, false)

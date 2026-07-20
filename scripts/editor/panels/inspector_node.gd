@@ -200,7 +200,8 @@ func read_and_validate_node_name():
 		if updated != already:
 			validated_name = updated
 			if Settings.FORCE_UNIQUE_NAMES_FOR_NODES:
-				while Main.Mind.is_resource_name_duplicate(validated_name, "nodes"):
+				var scene_id = Main.Mind.find_scene_owner_of_node(_CURRENT_INSPECTED_NODE_RESOURCE_ID)
+				while Main.Mind.is_node_name_duplicate_in_scene(validated_name, scene_id):
 					validated_name += Settings.REUSED_NODE_NAMES_AUTO_POSTFIX
 	return validated_name
 
