@@ -836,9 +836,6 @@ func _on_node_gui_input(event: InputEvent, instance) -> void:
 			and event.button_index == MOUSE_BUTTON_RIGHT
 			and not _ALREADY_SELECTED_NODE_IDS.has(instance._node_id)
 		):
-			# Keep the local selection cache in sync before the deferred popup
-			# evaluates which edit actions should be enabled.
-			select_node_by_id(instance._node_id, true)
 			_request_mind("select_node_exclusively", instance._node_id)
 		if event.is_double_click() && event.get_button_mask() == MouseButtonMask.MOUSE_BUTTON_MASK_LEFT:
 			# 🡦 To avid conflict with events handled by the `node.tscn` local scripts
